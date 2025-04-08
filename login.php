@@ -97,7 +97,7 @@
             <div class="signup-link">
                 Already have an account? <a href="#">Sign up</a>
             </div>
-        </div>
+    </div>
     </div>
 </body>
 </html>
