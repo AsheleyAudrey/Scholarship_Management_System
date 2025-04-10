@@ -167,6 +167,8 @@
   </style>
 </head>
 <body>
+  <!-- Sidebar -->
+   <?php include 'sidebar.php'; ?>
 
     <!-- Main content -->
     <div class="main-content">

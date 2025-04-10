@@ -87,34 +87,34 @@
     <div class="bg-light border-end p-3 sidebar" style="width: 250px; height: 100vh; overflow-y: auto;">
       
       <div class="nav flex-column">
-        <a href="#" class="nav-link">
+        <a href="/admin/dashboard.php" class="nav-link">
           <i class="bi bi-speedometer2 me-2"></i> Dashboard
         </a>
-        <a href="#" class="nav-link">
+        <a href="/admin/scholarship.php" class="nav-link">
           <i class="bi bi-house"></i> Manage Scholarships
         </a>
-        <a href="#" class="nav-link">
+        <a href="/admin/application.php" class="nav-link">
           <i class="bi bi-person"></i> Application Management
         </a>
-        <a href="#" class="nav-link">
+        <a href="/admin/student.php" class="nav-link">
           <i class="bi bi-people"></i> Student Management
         </a>
-        <a href="#" class="nav-link">
+        <a href="/admin/document.php" class="nav-link">
           <i class="bi bi-file-earmark-text"></i> Document
         </a>
-        <a href="#" class="nav-link">
+        <a href="/admin/fund.php" class="nav-link">
           <i class="bi bi-currency-dollar"></i> Fund Allocation
         </a>
-        <a href="#" class="nav-link">
+        <a href="/admin/reports.php" class="nav-link">
           <i class="bi bi-bar-chart"></i> Reports & Analytics
         </a>
-        <a href="#" class="nav-link">
+        <a href="/admin/detection.php" class="nav-link">
           <i class="bi bi-shield-check"></i> Fraud Detection Logs
         </a>
-        <a href="/student/notification.php" class="nav-link">
+        <a href="/admin/notification.php" class="nav-link">
           <i class="bi bi-bell me-2"></i>System Notifications
         </a>
-        <a href="#" class="nav-link">
+        <a href="/admin/settings.php" class="nav-link">
           <i class="bi bi-person-circle me-2"></i> Settings and Profile
         </a>
         <a href="#" class="nav-link">

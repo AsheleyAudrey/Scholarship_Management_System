@@ -19,8 +19,6 @@
 
     /* Adjust main content to account for fixed sidebar */
     .main-content {
-      margin-left: 250px;
-      padding: 20px;
       background-color: #f8f9fa; /* Light gray background for main content */
       min-height: 100vh;
     }
@@ -190,7 +188,8 @@
   </style>
 </head>
 <body>
-
+<!-- Sidebar -->
+ <?php include 'sidebar.php'; ?>
     <!-- Main content -->
     <div class="main-content">
       <!-- Header -->
