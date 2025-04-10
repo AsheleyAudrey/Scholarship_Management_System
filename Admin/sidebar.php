@@ -1,5 +1,5 @@
 <div>
-  <style>
+    <style>
     /* Custom styles for the sidebar */
     /* Increase specificity to override bg-light */
     div.bg-light.border-end.p-3.sidebar {
@@ -87,25 +87,34 @@
     <div class="bg-light border-end p-3 sidebar" style="width: 250px; height: 100vh; overflow-y: auto;">
       
       <div class="nav flex-column">
-        <a href="/student/dashboard.php" class="nav-link">
+        <a href="#" class="nav-link">
           <i class="bi bi-speedometer2 me-2"></i> Dashboard
         </a>
-        <a href="/student/available_scholarship.php" class="nav-link">
-          <i class="bi bi-award me-2"></i> Available Scholarships
+        <a href="#" class="nav-link">
+          <i class="bi bi-house"></i> Manage Scholarships
         </a>
-        <a href="/student/application.php" class="nav-link">
-          <i class="bi bi-journal-text me-2"></i> My Applications
+        <a href="#" class="nav-link">
+          <i class="bi bi-person"></i> Application Management
         </a>
-        <a href="/student/apply_now.php" class="nav-link">
-          <i class="bi bi-pencil-square me-2"></i> Apply Now
+        <a href="#" class="nav-link">
+          <i class="bi bi-people"></i> Student Management
         </a>
-        <a href="/student/upload_document.php" class="nav-link">
-          <i class="bi bi-upload me-2"></i> Upload Documents
+        <a href="#" class="nav-link">
+          <i class="bi bi-file-earmark-text"></i> Document
+        </a>
+        <a href="#" class="nav-link">
+          <i class="bi bi-currency-dollar"></i> Fund Allocation
+        </a>
+        <a href="#" class="nav-link">
+          <i class="bi bi-bar-chart"></i> Reports & Analytics
+        </a>
+        <a href="#" class="nav-link">
+          <i class="bi bi-shield-check"></i> Fraud Detection Logs
         </a>
         <a href="/student/notification.php" class="nav-link">
-          <i class="bi bi-bell me-2"></i> Notifications
+          <i class="bi bi-bell me-2"></i>System Notifications
         </a>
-        <a href="/student/settings.php" class="nav-link">
+        <a href="#" class="nav-link">
           <i class="bi bi-person-circle me-2"></i> Settings and Profile
         </a>
         <a href="#" class="nav-link">
@@ -117,3 +126,4 @@
       </div>
     </div>
   </div>
+ 
