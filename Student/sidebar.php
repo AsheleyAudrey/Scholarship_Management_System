@@ -113,7 +113,7 @@
         </a>
       </div>
       <div>
-        <a href="/login.php" class="btn btn-danger mt-3 w-100">Logout</a>
+        <a href="login.php" class="btn btn-danger mt-3 w-100">Logout</a>
       </div>
     </div>
   </div>
