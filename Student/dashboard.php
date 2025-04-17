@@ -1,3 +1,95 @@
+<?php
+// Start session for student authentication
+session_start();
+
+// Database connection with error handling
+$servername = "localhost";
+$username = "root";
+$password = "password"; // Replace with your actual MySQL root password
+$dbname = "Scholarship_db"; // Match database name from SQL file
+$port = 3306;
+
+$conn = new mysqli($servername, $username, $password, $dbname, $port);
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Verify database selection
+if (!$conn->select_db($dbname)) {
+    die("Database not found: $dbname");
+}
+
+// Check if Documents table exists
+$documentsTableExists = $conn->query("SHOW TABLES LIKE 'Documents'")->num_rows > 0;
+
+// Assume logged-in student (John Doe, user_id: 5, student_id: 2)
+// In a real system, use $_SESSION['user_id']
+$user_id = 5;
+$studentQuery = "SELECT student_id, first_name, last_name FROM Students WHERE user_id = ?";
+$stmt = $conn->prepare($studentQuery);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$studentResult = $stmt->get_result();
+$student = $studentResult->num_rows > 0 ? $studentResult->fetch_assoc() : null;
+$student_id = $student ? $student['student_id'] : null;
+$student_name = $student ? $student['first_name'] . ' ' . $student['last_name'] : 'Student';
+
+// Quick Stats
+$applicationsSubmittedQuery = "SELECT COUNT(*) AS count FROM Applications WHERE student_id = ?";
+$stmt = $conn->prepare($applicationsSubmittedQuery);
+$stmt->bind_param("i", $student_id);
+$stmt->execute();
+$applicationsSubmitted = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+
+$pendingDocumentsQuery = $documentsTableExists ?
+    "SELECT COUNT(DISTINCT a.application_id) AS count
+     FROM Applications a
+     LEFT JOIN Documents d ON a.application_id = d.application_id
+     WHERE a.student_id = ? AND d.document_id IS NULL" :
+    "SELECT 0 AS count";
+$stmt = $conn->prepare($pendingDocumentsQuery);
+$stmt->bind_param("i", $student_id);
+$stmt->execute();
+$pendingDocuments = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+
+$unreadNotificationsQuery = "SELECT COUNT(*) AS count FROM Notifications WHERE user_id = ? AND status = 'Unread'";
+$stmt = $conn->prepare($unreadNotificationsQuery);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$unreadNotifications = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
+
+// Recent Applications
+$recentApplicationsQuery = "SELECT s.name AS scholarship_name, a.status, DATE(a.submission_date) AS date_applied
+                           FROM Applications a
+                           JOIN Scholarships s ON a.scholarship_id = s.scholarship_id
+                           WHERE a.student_id = ?
+                           ORDER BY a.submission_date DESC
+                           LIMIT 3";
+$stmt = $conn->prepare($recentApplicationsQuery);
+$stmt->bind_param("i", $student_id);
+$stmt->execute();
+$recentApplicationsResult = $stmt->get_result();
+
+// Upcoming Deadlines
+$upcomingDeadlinesQuery = "SELECT name, application_deadline
+                          FROM Scholarships
+                          WHERE status = 'Open' AND application_deadline >= CURDATE()
+                          ORDER BY application_deadline ASC
+                          LIMIT 3";
+$upcomingDeadlinesResult = $conn->query($upcomingDeadlinesQuery);
+
+// Notifications
+$notificationsQuery = "SELECT message
+                      FROM Notifications
+                      WHERE user_id = ? AND status = 'Unread'
+                      ORDER BY date_created DESC
+                      LIMIT 3";
+$stmt = $conn->prepare($notificationsQuery);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$notificationsResult = $stmt->get_result();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,19 +98,13 @@
   <title>Dashboard</title>
   
   <!-- Bootstrap CSS -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <!-- Bootstrap Icons -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
-    rel="stylesheet"
-  />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
   <style>
     /* Adjust main content to account for fixed sidebar */
     .main-content {
-      background-color: #f8f9fa; /* Light gray background for main content */
+      background-color: #f8f9fa;
       min-height: 100vh;
     }
 
@@ -48,7 +134,7 @@
     .welcome-message h2 {
       font-size: 20px;
       font-weight: 600;
-      color: #152259; /* Match sidebar color */
+      color: #152259;
       margin-bottom: 10px;
     }
 
@@ -72,14 +158,14 @@
 
     .stat-card i {
       font-size: 24px;
-      color: #509CDB; /* Match active item color */
+      color: #509CDB;
       margin-bottom: 10px;
     }
 
     .stat-card h3 {
       font-size: 16px;
       font-weight: 600;
-      color: #152259; /* Match sidebar color */
+      color: #152259;
       margin-bottom: 5px;
     }
 
@@ -102,7 +188,7 @@
     .dashboard-section h3 {
       font-size: 18px;
       font-weight: 600;
-      color: #152259; /* Match sidebar color */
+      color: #152259;
       margin-bottom: 15px;
     }
 
@@ -111,7 +197,7 @@
     }
 
     .dashboard-section .table th {
-      background-color: #152259; /* Match sidebar color */
+      background-color: #152259;
       color: #ffffff;
     }
 
@@ -143,7 +229,7 @@
 
     .dashboard-section .deadline-item .date {
       font-size: 14px;
-      color: #dc3545; /* Red for urgency */
+      color: #dc3545;
     }
 
     /* Notifications section */
@@ -161,7 +247,7 @@
     .dashboard-section .notification-item i {
       font-size: 20px;
       margin-right: 10px;
-      color: #509CDB; /* Match active item color */
+      color: #509CDB;
     }
 
     .dashboard-section .notification-item span {
@@ -177,7 +263,7 @@
     }
 
     .dashboard-section .quick-links .btn {
-      background-color: #509CDB; /* Match active item color */
+      background-color: #509CDB;
       border: none;
       padding: 10px 20px;
       font-size: 14px;
@@ -200,7 +286,7 @@
 
     <!-- Welcome Message -->
     <div class="welcome-message">
-      <h2>Welcome, John Doe!</h2>
+      <h2>Welcome, <?php echo htmlspecialchars($student_name); ?>!</h2>
       <p>Here’s an overview of your scholarship journey. Stay on top of your applications and deadlines.</p>
     </div>
 
@@ -209,79 +295,84 @@
       <div class="stat-card">
         <i class="bi bi-journal-text"></i>
         <h3>Applications Submitted</h3>
-        <p>4</p>
+        <p><?php echo $applicationsSubmitted; ?></p>
       </div>
       <div class="stat-card">
         <i class="bi bi-upload"></i>
         <h3>Pending Documents</h3>
-        <p>1</p>
+        <p><?php echo $pendingDocuments; ?></p>
       </div>
       <div class="stat-card">
         <i class="bi bi-bell"></i>
         <h3>Unread Notifications</h3>
-        <p>2</p>
+        <p><?php echo $unreadNotifications; ?></p>
       </div>
     </div>
 
     <!-- Recent Applications -->
     <div class="dashboard-section">
       <h3>Recent Applications</h3>
-      <table class="table table-hover">
-        <thead>
-          <tr>
-            <th>Scholarship Name</th>
-            <th>Status</th>
-            <th>Date Applied</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Merit-Based Scholarship</td>
-            <td><span class="badge bg-warning">Pending</span></td>
-            <td>2025-04-01</td>
-          </tr>
-          <tr>
-            <td>Need-Based Scholarship</td>
-            <td><span class="badge bg-primary">Under Review</span></td>
-            <td>2025-03-28</td>
-          </tr>
-          <tr>
-            <td>STEM Scholarship</td>
-            <td><span class="badge bg-success">Approved</span></td>
-            <td>2025-03-25</td>
-          </tr>
-        </tbody>
-      </table>
+      <?php if ($recentApplicationsResult && $recentApplicationsResult->num_rows > 0): ?>
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>Scholarship Name</th>
+              <th>Status</th>
+              <th>Date Applied</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php while ($row = $recentApplicationsResult->fetch_assoc()): ?>
+              <tr>
+                <td><?php echo htmlspecialchars($row['scholarship_name']); ?></td>
+                <td>
+                  <span class="badge <?php
+                    echo $row['status'] == 'Pending' ? 'bg-warning' :
+                         ($row['status'] == 'Under Review' ? 'bg-primary' :
+                         ($row['status'] == 'Approved' ? 'bg-success' :
+                         ($row['status'] == 'Rejected' ? 'bg-danger' : 'bg-secondary')));
+                  ?>">
+                    <?php echo htmlspecialchars($row['status']); ?>
+                  </span>
+                </td>
+                <td><?php echo htmlspecialchars($row['date_applied']); ?></td>
+              </tr>
+            <?php endwhile; ?>
+          </tbody>
+        </table>
+      <?php else: ?>
+        <p>No recent applications found.</p>
+      <?php endif; ?>
     </div>
 
     <!-- Upcoming Deadlines -->
     <div class="dashboard-section">
       <h3>Upcoming Deadlines</h3>
-      <div class="deadline-item">
-        <p>STEM Scholarship</p>
-        <div class="date">2025-06-30</div>
-      </div>
-      <div class="deadline-item">
-        <p>Need-Based Scholarship</p>
-        <div class="date">2025-07-01</div>
-      </div>
+      <?php if ($upcomingDeadlinesResult && $upcomingDeadlinesResult->num_rows > 0): ?>
+        <?php while ($row = $upcomingDeadlinesResult->fetch_assoc()): ?>
+          <div class="deadline-item">
+            <p><?php echo htmlspecialchars($row['name']); ?></p>
+            <div class="date"><?php echo htmlspecialchars($row['application_deadline']); ?></div>
+          </div>
+        <?php endwhile; ?>
+      <?php else: ?>
+        <p>No upcoming deadlines found.</p>
+      <?php endif; ?>
     </div>
 
     <!-- Notifications Section -->
     <div class="dashboard-section">
       <h3>Notifications</h3>
-      <div class="notification-item">
-        <i class="bi bi-bell"></i>
-        <span>New application submitted by John Doe.</span>
-      </div>
-      <div class="notification-item">
-        <i class="bi bi-bell"></i>
-        <span>Deadline for Merit Scholarship applications is tomorrow.</span>
-      </div>
-      <div class="notification-item">
-        <i class="bi bi-bell"></i>
-        <span>Reviewer assigned to application #002.</span>
-      </div>
+      <?php if ($notificationsResult && $notificationsResult->num_rows > 0): ?>
+        <?php while ($row = $notificationsResult->fetch_assoc()): ?>
+          <div class="notification-item">
+            <i class="bi bi-bell"></i>
+            <span><?php echo htmlspecialchars($row['message']); ?></span>
+          </div>
+        <?php endwhile; ?>
+      <?php else: ?>
+        <p>No unread notifications found.</p>
+      <?php endif; ?>
     </div>
 
     <!-- Quick Links -->
@@ -296,8 +387,11 @@
   </div>
 
   <!-- Bootstrap JS -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-  ></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
+<?php
+// Close database connection
+$conn->close();
+?>

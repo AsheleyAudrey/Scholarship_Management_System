@@ -23,7 +23,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Redirect based on role
         if ($role === "Admin") {
             echo "<script>window.location.href = 'admin/dashboard.php';</script>";
-        } else {
+        }
+        else if ($role === "Reviewer") {
+            echo "<script>window.location.href = 'reviewer/dashboard.php';</script>";
+        }
+        else {
             echo "<script>window.location.href = 'student/dashboard.php';</script>";
         }
     } else {

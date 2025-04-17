@@ -87,34 +87,34 @@
     <div class="bg-light border-end p-3 sidebar" style="width: 250px; height: 100vh; overflow-y: auto;">
       
       <div class="nav flex-column">
-        <a href="/admin/dashboard.php" class="nav-link">
+        <a href="dashboard.php" class="nav-link">
           <i class="bi bi-speedometer2 me-2"></i> Dashboard
         </a>
-        <a href="/admin/scholarship.php" class="nav-link">
+        <a href="scholarship.php" class="nav-link">
           <i class="bi bi-house"></i> Manage Scholarships
         </a>
-        <a href="/admin/application.php" class="nav-link">
+        <a href="application.php" class="nav-link">
           <i class="bi bi-person"></i> Application Management
         </a>
-        <a href="/admin/student.php" class="nav-link">
+        <a href="student.php" class="nav-link">
           <i class="bi bi-people"></i> Student Management
         </a>
-        <a href="/admin/document.php" class="nav-link">
+        <a href="document.php" class="nav-link">
           <i class="bi bi-file-earmark-text"></i> Document
         </a>
-        <a href="/admin/fund.php" class="nav-link">
+        <a href="fund.php" class="nav-link">
           <i class="bi bi-currency-dollar"></i> Fund Allocation
         </a>
-        <a href="/admin/reports.php" class="nav-link">
+        <a href="reports.php" class="nav-link">
           <i class="bi bi-bar-chart"></i> Reports & Analytics
         </a>
-        <a href="/admin/detection.php" class="nav-link">
+        <a href="detection.php" class="nav-link">
           <i class="bi bi-shield-check"></i> Fraud Detection Logs
         </a>
-        <a href="/admin/notification.php" class="nav-link">
+        <a href="notification.php" class="nav-link">
           <i class="bi bi-bell me-2"></i>System Notifications
         </a>
-        <a href="/admin/settings.php" class="nav-link">
+        <a href="settings.php" class="nav-link">
           <i class="bi bi-person-circle me-2"></i> Settings and Profile
         </a>
         <a href="#" class="nav-link">
@@ -122,7 +122,7 @@
         </a>
       </div>
       <div>
-        <a href="/login.php" class="btn btn-danger mt-3 w-100">Logout</a>
+        <a href="/Scholarship_Management_System/login.php" class="btn btn-danger mt-3 w-100">Logout</a>
       </div>
     </div>
   </div>

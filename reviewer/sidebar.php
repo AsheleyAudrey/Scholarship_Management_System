@@ -87,26 +87,26 @@
     <div class="bg-light border-end p-3 sidebar" style="width: 250px; height: 100vh; overflow-y: auto;">
       
       <div class="nav flex-column">
-        <a href="/reviewer/dashboard.php" class="nav-link">
+        <a href="dashboard.php" class="nav-link">
           <i class="bi bi-speedometer2 me-2"></i> Dashboard
         </a>
-        <a href="/reviewer/application.php" class="nav-link">
+        <a href="application.php" class="nav-link">
           <i class="bi bi-folder-check me-2"></i> Application Assigned
         </a>
-        <a href="/reviewer/review.php" class="nav-link">
+        <a href="review.php" class="nav-link">
           <i class="bi bi-pencil-square me-2"></i> Review & Scores
         </a>
-        <a href="/reviewer/document.php" class="nav-link">
+        <a href="document.php" class="nav-link">
           <i class="bi bi-file-earmark-text me-2"></i> Document Review
         </a>
-        <a href="/reviewer/history.php" class="nav-link">
+        <a href="history.php" class="nav-link">
           <i class="bi bi-clock-history me-2"></i> Review History
         </a>
         
-        <a href="/reviewer/notification.php" class="nav-link">
+        <a href="notification.php" class="nav-link">
           <i class="bi bi-bell me-2"></i>Notifications
         </a>
-        <a href="/reviewer/settings.php" class="nav-link">
+        <a href="settings.php" class="nav-link">
           <i class="bi bi-person-circle me-2"></i> Settings and Profile
         </a>
         <a href="#" class="nav-link">
@@ -114,7 +114,7 @@
         </a>
       </div>
       <div>
-        <a href="/login.php" class="btn btn-danger mt-3 w-100">Logout</a>
+        <a href="/Scholarship_Management_System/login.php" class="btn btn-danger mt-3 w-100">Logout</a>
       </div>
     </div>
   </div>

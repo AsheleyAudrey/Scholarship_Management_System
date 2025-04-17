@@ -87,25 +87,25 @@
     <div class="bg-light border-end p-3 sidebar" style="width: 250px; height: 100vh; overflow-y: auto;">
       
       <div class="nav flex-column">
-        <a href="/student/dashboard.php" class="nav-link">
+        <a href="dashboard.php" class="nav-link">
           <i class="bi bi-speedometer2 me-2"></i> Dashboard
         </a>
-        <a href="/student/available_scholarship.php" class="nav-link">
+        <a href="available_scholarship.php" class="nav-link">
           <i class="bi bi-award me-2"></i> Available Scholarships
         </a>
-        <a href="/student/application.php" class="nav-link">
+        <a href="application.php" class="nav-link">
           <i class="bi bi-journal-text me-2"></i> My Applications
         </a>
-        <a href="/student/apply_now.php" class="nav-link">
+        <a href="apply_now.php" class="nav-link">
           <i class="bi bi-pencil-square me-2"></i> Apply Now
         </a>
-        <a href="/student/upload_document.php" class="nav-link">
+        <a href="upload_document.php" class="nav-link">
           <i class="bi bi-upload me-2"></i> Upload Documents
         </a>
-        <a href="/student/notification.php" class="nav-link">
+        <a href="notification.php" class="nav-link">
           <i class="bi bi-bell me-2"></i> Notifications
         </a>
-        <a href="/student/settings.php" class="nav-link">
+        <a href="settings.php" class="nav-link">
           <i class="bi bi-person-circle me-2"></i> Settings and Profile
         </a>
         <a href="#" class="nav-link">
@@ -113,7 +113,7 @@
         </a>
       </div>
       <div>
-        <a href="login.php" class="btn btn-danger mt-3 w-100">Logout</a>
+        <a href="/Scholarship_Management_System/login.php" class="btn btn-danger mt-3 w-100">Logout</a>
       </div>
     </div>
   </div>
