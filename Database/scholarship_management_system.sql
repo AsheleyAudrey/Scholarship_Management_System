@@ -29,12 +29,13 @@ CREATE TABLE Students (
 
 -- Table for listing available scholarships (merged from both definitions)
 CREATE TABLE Scholarships (
-    scholarship_id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(255) NOT NULL UNIQUE,
-    description TEXT,
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
     amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
-    eligibility_criteria TEXT,
-    application_deadline DATE NOT NULL,
+    gpa DECIMAL(3,1) DEFAULT NULL,
+    other_criteria VARCHAR(255) DEFAULT NULL,
+    application_start DATE DEFAULT NULL,
+    application_end DATE NOT NULL,
     status ENUM('Open', 'Closed', 'Awarded') DEFAULT 'Open',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -103,10 +104,10 @@ INSERT INTO Users (username, password, role, approval_status) VALUES
 ('Jolly Adams', 'password321', 'Student', 'Approved');
 
 -- Insert sample data into Scholarships table
-INSERT INTO Scholarships (name, description, amount, eligibility_criteria, application_deadline, status) VALUES
-('Full Tuition Scholarship', 'Covers full tuition for 4 years.', 50000.00, 'Minimum GPA of 3.0', '2025-06-30', 'Open'),
-('Merit-Based Scholarship', 'For students with high academic achievement.', 15000.00, 'GPA above 3.8', '2025-05-15', 'Open'),
-('Need-Based Scholarship', 'For students with demonstrated financial need.', 10000.00, 'Family income below $50,000/year', '2025-07-01', 'Open');
+INSERT INTO Scholarships (name, amount, gpa, other_criteria, application_start, application_end, status) VALUES
+('Full Tuition Scholarship', 50000.00, 3.0, 'Leadership', '2025-01-01', '2025-06-30', 'Open'),
+('Merit-Based Scholarship', 15000.00, 3.8, 'STEM Major', '2025-03-01', '2025-05-15', 'Open'),
+('Need-Based Scholarship', 10000.00, 3.0, 'Financial Need', '2025-02-01', '2025-07-01', 'Open');
 
 -- Insert sample data into ReviewCommittee table
 INSERT INTO ReviewCommittee (name, email, role, user_id) VALUES
