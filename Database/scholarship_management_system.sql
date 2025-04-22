@@ -29,7 +29,7 @@ CREATE TABLE Students (
 
 -- Table for listing available scholarships (merged from both definitions)
 CREATE TABLE Scholarships (
-    id INT PRIMARY KEY AUTO_INCREMENT,
+    scholarship_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
     amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
     gpa DECIMAL(3,1) DEFAULT NULL,

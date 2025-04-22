@@ -2,11 +2,15 @@
 // Start session for student authentication
 session_start();
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // Database connection with error handling
 $servername = "localhost";
 $username = "root";
 $password = "password"; // Replace with your actual MySQL root password
-$dbname = "Scholarship_db"; // Match database name from SQL file
+$dbname = "Scholarship_db";
 $port = 3306;
 
 $conn = new mysqli($servername, $username, $password, $dbname, $port);
@@ -19,14 +23,20 @@ if (!$conn->select_db($dbname)) {
     die("Database not found: $dbname");
 }
 
-// Check if Documents table exists
+// Check if tables exist
 $documentsTableExists = $conn->query("SHOW TABLES LIKE 'Documents'")->num_rows > 0;
+$scholarshipsTableExists = $conn->query("SHOW TABLES LIKE 'Scholarships'")->num_rows > 0;
+if (!$scholarshipsTableExists) {
+    die("Scholarships table not found in database: $dbname");
+}
 
-// Assume logged-in student (John Doe, user_id: 5, student_id: 2)
-// In a real system, use $_SESSION['user_id']
-$user_id = 5;
+// Assume logged-in student (Amber David, user_id: 4, student_id: 1)
+$user_id = 4;
 $studentQuery = "SELECT student_id, first_name, last_name FROM Students WHERE user_id = ?";
 $stmt = $conn->prepare($studentQuery);
+if (!$stmt) {
+    die("Prepare failed: " . $conn->error);
+}
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $studentResult = $stmt->get_result();
@@ -66,17 +76,28 @@ $recentApplicationsQuery = "SELECT s.name AS scholarship_name, a.status, DATE(a.
                            ORDER BY a.submission_date DESC
                            LIMIT 3";
 $stmt = $conn->prepare($recentApplicationsQuery);
+if (!$stmt) {
+    die("Prepare failed: " . $conn->error);
+}
 $stmt->bind_param("i", $student_id);
-$stmt->execute();
+if (!$stmt->execute()) {
+    die("Execute failed: " . $stmt->error);
+}
 $recentApplicationsResult = $stmt->get_result();
+if (!$recentApplicationsResult) {
+    die("Query failed: " . $conn->error);
+}
 
 // Upcoming Deadlines
-$upcomingDeadlinesQuery = "SELECT name, application_deadline
+$upcomingDeadlinesQuery = "SELECT name, application_end AS application_deadline
                           FROM Scholarships
-                          WHERE status = 'Open' AND application_deadline >= CURDATE()
-                          ORDER BY application_deadline ASC
+                          WHERE status = 'Open' AND application_end >= CURDATE()
+                          ORDER BY application_end ASC
                           LIMIT 3";
 $upcomingDeadlinesResult = $conn->query($upcomingDeadlinesQuery);
+if (!$upcomingDeadlinesResult) {
+    die("Query failed: " . $conn->error);
+}
 
 // Notifications
 $notificationsQuery = "SELECT message
@@ -95,34 +116,28 @@ $notificationsResult = $stmt->get_result();
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dashboard</title>
+  <title>Student Dashboard</title>
   
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
   <style>
-    /* Adjust main content to account for fixed sidebar */
     .main-content {
       background-color: #f8f9fa;
       min-height: 100vh;
     }
-
-    /* Header styling */
     .page-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 20px;
     }
-
     .page-header h1 {
       font-size: 24px;
       font-weight: 600;
       color: #333;
     }
-
-    /* Welcome message */
     .welcome-message {
       background-color: #ffffff;
       border-radius: 8px;
@@ -130,22 +145,18 @@ $notificationsResult = $stmt->get_result();
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
       margin-bottom: 20px;
     }
-
     .welcome-message h2 {
       font-size: 20px;
       font-weight: 600;
       color: #152259;
       margin-bottom: 10px;
     }
-
-    /* Quick stats */
     .quick-stats {
       display: flex;
       gap: 20px;
       margin-bottom: 20px;
       flex-wrap: wrap;
     }
-
     .stat-card {
       background-color: #ffffff;
       border-radius: 8px;
@@ -155,28 +166,23 @@ $notificationsResult = $stmt->get_result();
       min-width: 200px;
       text-align: center;
     }
-
     .stat-card i {
       font-size: 24px;
       color: #509CDB;
       margin-bottom: 10px;
     }
-
     .stat-card h3 {
       font-size: 16px;
       font-weight: 600;
       color: #152259;
       margin-bottom: 5px;
     }
-
     .stat-card p {
       font-size: 24px;
       font-weight: 600;
       color: #333;
       margin: 0;
     }
-
-    /* Recent applications, upcoming deadlines, notifications, and quick links */
     .dashboard-section {
       background-color: #ffffff;
       border-radius: 8px;
@@ -184,31 +190,25 @@ $notificationsResult = $stmt->get_result();
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
       margin-bottom: 20px;
     }
-
     .dashboard-section h3 {
       font-size: 18px;
       font-weight: 600;
       color: #152259;
       margin-bottom: 15px;
     }
-
     .dashboard-section .table {
       margin-bottom: 0;
     }
-
     .dashboard-section .table th {
       background-color: #152259;
       color: #ffffff;
     }
-
     .dashboard-section .table td {
       vertical-align: middle;
     }
-
     .dashboard-section .table .badge {
       font-size: 12px;
     }
-
     .dashboard-section .deadline-item {
       display: flex;
       justify-content: space-between;
@@ -216,52 +216,41 @@ $notificationsResult = $stmt->get_result();
       padding: 10px 0;
       border-bottom: 1px solid #eee;
     }
-
     .dashboard-section .deadline-item:last-child {
       border-bottom: none;
     }
-
     .dashboard-section .deadline-item p {
       margin: 0;
       font-size: 14px;
       color: #333;
     }
-
     .dashboard-section .deadline-item .date {
       font-size: 14px;
       color: #dc3545;
     }
-
-    /* Notifications section */
     .dashboard-section .notification-item {
       display: flex;
       align-items: center;
       padding: 10px 0;
       border-bottom: 1px solid #eee;
     }
-
     .dashboard-section .notification-item:last-child {
       border-bottom: none;
     }
-
     .dashboard-section .notification-item i {
       font-size: 20px;
       margin-right: 10px;
       color: #509CDB;
     }
-
     .dashboard-section .notification-item span {
       font-size: 14px;
       color: #333;
     }
-
-    /* Quick links */
     .dashboard-section .quick-links {
       display: flex;
       gap: 15px;
       flex-wrap: wrap;
     }
-
     .dashboard-section .quick-links .btn {
       background-color: #509CDB;
       border: none;
@@ -269,7 +258,6 @@ $notificationsResult = $stmt->get_result();
       font-size: 14px;
       color: #ffffff;
     }
-
     .dashboard-section .quick-links .btn:hover {
       background-color: #408CCB;
     }
@@ -277,20 +265,14 @@ $notificationsResult = $stmt->get_result();
 </head>
 <body>
   <?php include 'sidebar.php'; ?>
-  <!-- Main content -->
   <div class="main-content">
-    <!-- Header -->
     <div class="page-header">
       <h1>Scholarship Management Dashboard</h1>
     </div>
-
-    <!-- Welcome Message -->
     <div class="welcome-message">
       <h2>Welcome, <?php echo htmlspecialchars($student_name); ?>!</h2>
       <p>Here’s an overview of your scholarship journey. Stay on top of your applications and deadlines.</p>
     </div>
-
-    <!-- Quick Stats -->
     <div class="quick-stats">
       <div class="stat-card">
         <i class="bi bi-journal-text"></i>
@@ -308,8 +290,6 @@ $notificationsResult = $stmt->get_result();
         <p><?php echo $unreadNotifications; ?></p>
       </div>
     </div>
-
-    <!-- Recent Applications -->
     <div class="dashboard-section">
       <h3>Recent Applications</h3>
       <?php if ($recentApplicationsResult && $recentApplicationsResult->num_rows > 0): ?>
@@ -327,10 +307,17 @@ $notificationsResult = $stmt->get_result();
                 <td><?php echo htmlspecialchars($row['scholarship_name']); ?></td>
                 <td>
                   <span class="badge <?php
-                    echo $row['status'] == 'Pending' ? 'bg-warning' :
-                         ($row['status'] == 'Under Review' ? 'bg-primary' :
-                         ($row['status'] == 'Approved' ? 'bg-success' :
-                         ($row['status'] == 'Rejected' ? 'bg-danger' : 'bg-secondary')));
+                      $badgeClass = match ($row['status']) {
+                          'Submitted' => 'bg-info',
+                          'Pending' => 'bg-warning',
+                          'Under Review' => 'bg-primary',
+                          'Approved' => 'bg-success',
+                          'Accepted' => 'bg-success',
+                          'Rejected' => 'bg-danger',
+                          'Needs More Info' => 'bg-secondary',
+                          default => 'bg-secondary'
+                      };
+                      echo $badgeClass;
                   ?>">
                     <?php echo htmlspecialchars($row['status']); ?>
                   </span>
@@ -344,8 +331,6 @@ $notificationsResult = $stmt->get_result();
         <p>No recent applications found.</p>
       <?php endif; ?>
     </div>
-
-    <!-- Upcoming Deadlines -->
     <div class="dashboard-section">
       <h3>Upcoming Deadlines</h3>
       <?php if ($upcomingDeadlinesResult && $upcomingDeadlinesResult->num_rows > 0): ?>
@@ -359,8 +344,6 @@ $notificationsResult = $stmt->get_result();
         <p>No upcoming deadlines found.</p>
       <?php endif; ?>
     </div>
-
-    <!-- Notifications Section -->
     <div class="dashboard-section">
       <h3>Notifications</h3>
       <?php if ($notificationsResult && $notificationsResult->num_rows > 0): ?>
@@ -374,8 +357,6 @@ $notificationsResult = $stmt->get_result();
         <p>No unread notifications found.</p>
       <?php endif; ?>
     </div>
-
-    <!-- Quick Links -->
     <div class="dashboard-section">
       <h3>Quick Links</h3>
       <div class="quick-links">
