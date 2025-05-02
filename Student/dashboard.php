@@ -23,8 +23,7 @@ if (!$conn->select_db($dbname)) {
     die("Database not found: $dbname");
 }
 
-// Check if tables exist
-$documentsTableExists = $conn->query("SHOW TABLES LIKE 'Documents'")->num_rows > 0;
+// Check if Scholarships table exists
 $scholarshipsTableExists = $conn->query("SHOW TABLES LIKE 'Scholarships'")->num_rows > 0;
 if (!$scholarshipsTableExists) {
     die("Scholarships table not found in database: $dbname");
@@ -38,38 +37,53 @@ if (!$stmt) {
     die("Prepare failed: " . $conn->error);
 }
 $stmt->bind_param("i", $user_id);
-$stmt->execute();
+if (!$stmt->execute()) {
+    die("Execute failed: " . $stmt->error);
+}
 $studentResult = $stmt->get_result();
 $student = $studentResult->num_rows > 0 ? $studentResult->fetch_assoc() : null;
-$student_id = $student ? $student['student_id'] : null;
-$student_name = $student ? $student['first_name'] . ' ' . $student['last_name'] : 'Student';
+if (!$student) {
+    die("Student not found for user_id: $user_id");
+}
+$student_id = $student['student_id'];
+$student_name = $student['first_name'] . ' ' . $student['last_name'];
 
 // Quick Stats
 $applicationsSubmittedQuery = "SELECT COUNT(*) AS count FROM Applications WHERE student_id = ?";
 $stmt = $conn->prepare($applicationsSubmittedQuery);
+if (!$stmt) {
+    die("Prepare failed for applicationsSubmittedQuery: " . $conn->error);
+}
 $stmt->bind_param("i", $student_id);
-$stmt->execute();
+if (!$stmt->execute()) {
+    die("Execute failed for applicationsSubmittedQuery: " . $stmt->error);
+}
 $applicationsSubmitted = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
 
-$pendingDocumentsQuery = $documentsTableExists ?
-    "SELECT COUNT(DISTINCT a.application_id) AS count
-     FROM Applications a
-     LEFT JOIN Documents d ON a.application_id = d.application_id
-     WHERE a.student_id = ? AND d.document_id IS NULL" :
-    "SELECT 0 AS count";
+// Pending Documents: Count applications where document_url is NULL
+$pendingDocumentsQuery = "SELECT COUNT(*) AS count
+                         FROM Applications a
+                         WHERE a.student_id = ? AND a.document_url IS NULL";
 $stmt = $conn->prepare($pendingDocumentsQuery);
+if (!$stmt) {
+    die("Prepare failed: " . $conn->error);
+}
 $stmt->bind_param("i", $student_id);
-$stmt->execute();
+if (!$stmt->execute()) {
+    die("Execute failed: " . $stmt->error);
+}
 $pendingDocuments = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
 
 $unreadNotificationsQuery = "SELECT COUNT(*) AS count FROM Notifications WHERE user_id = ? AND status = 'Unread'";
 $stmt = $conn->prepare($unreadNotificationsQuery);
 $stmt->bind_param("i", $user_id);
-$stmt->execute();
+if (!$stmt->execute()) {
+    die("Execute failed: " . $stmt->error);
+}
 $unreadNotifications = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
 
 // Recent Applications
-$recentApplicationsQuery = "SELECT s.name AS scholarship_name, a.status, DATE(a.submission_date) AS date_applied
+$recentApplicationsQuery = "SELECT s.name AS scholarship_name, a.status, DATE(a.submission_date) AS date_applied, a.document_url
                            FROM Applications a
                            JOIN Scholarships s ON a.scholarship_id = s.scholarship_id
                            WHERE a.student_id = ?
@@ -299,6 +313,7 @@ $notificationsResult = $stmt->get_result();
               <th>Scholarship Name</th>
               <th>Status</th>
               <th>Date Applied</th>
+              <th>Document</th>
             </tr>
           </thead>
           <tbody>
@@ -323,6 +338,13 @@ $notificationsResult = $stmt->get_result();
                   </span>
                 </td>
                 <td><?php echo htmlspecialchars($row['date_applied']); ?></td>
+                <td>
+                  <?php if ($row['document_url']): ?>
+                    <a href="<?php echo htmlspecialchars($row['document_url']); ?>" target="_blank">View Document</a>
+                  <?php else: ?>
+                    No Document
+                  <?php endif; ?>
+                </td>
               </tr>
             <?php endwhile; ?>
           </tbody>

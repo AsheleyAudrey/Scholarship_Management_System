@@ -9,7 +9,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
 
     // Add or Edit Scholarship
     if ($_POST['action'] == 'add' || $_POST['action'] == 'edit') {
-        $id = isset($_POST['id']) && !empty($_POST['id']) ? intval($_POST['id']) : null;
+        $scholarship_id = isset($_POST['scholarship_id']) && !empty($_POST['scholarship_id']) ? intval($_POST['scholarship_id']) : null;
         $name = trim($_POST['name']);
         $amount = floatval($_POST['amount']);
         $gpa = !empty($_POST['gpa']) ? floatval($_POST['gpa']) : null;
@@ -29,13 +29,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
                 $stmt = $conn->prepare($sql);
                 $stmt->bind_param("sdsssss", $name, $amount, $gpa, $other_criteria, $application_start, $application_end, $status);
             } else {
-                $sql = "UPDATE Scholarships SET name = ?, amount = ?, gpa = ?, other_criteria = ?, application_start = ?, application_end = ?, status = ? WHERE id = ?";
+                $sql = "UPDATE Scholarships SET name = ?, amount = ?, gpa = ?, other_criteria = ?, application_start = ?, application_end = ?, status = ? WHERE scholarship_id = ?";
                 $stmt = $conn->prepare($sql);
-                $stmt->bind_param("sdsssssi", $name, $amount, $gpa, $other_criteria, $application_start, $application_end, $status, $id);
+                $stmt->bind_param("sdsssssi", $name, $amount, $gpa, $other_criteria, $application_start, $application_end, $status, $scholarship_id);
             }
 
             if ($stmt->execute()) {
-                echo json_encode(['success' => true, 'id' => $_POST['action'] == 'add' ? $conn->insert_id : $id]);
+                echo json_encode(['success' => true, 'scholarship_id' => $_POST['action'] == 'add' ? $conn->insert_id : $scholarship_id]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Database error: ' . $stmt->error]);
             }
@@ -48,11 +48,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
 
     // Delete Scholarship
     if ($_POST['action'] == 'delete') {
-        $id = intval($_POST['id']);
+        $scholarship_id = intval($_POST['scholarship_id']);
         try {
-            $sql = "DELETE FROM Scholarships WHERE id = ?";
+            $sql = "DELETE FROM Scholarships WHERE scholarship_id = ?";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param("i", $id);
+            $stmt->bind_param("i", $scholarship_id);
 
             if ($stmt->execute()) {
                 echo json_encode(['success' => true]);
@@ -68,16 +68,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
 
     // Toggle Status
     if ($_POST['action'] == 'toggle') {
-        $id = intval($_POST['id']);
+        $scholarship_id = intval($_POST['scholarship_id']);
         $status = $_POST['status'];
         if (!in_array($status, ['Open', 'Closed', 'Awarded'])) {
             echo json_encode(['success' => false, 'message' => 'Invalid status']);
             exit;
         }
         try {
-            $sql = "UPDATE Scholarships SET status = ? WHERE id = ?";
+            $sql = "UPDATE Scholarships SET status = ? WHERE scholarship_id = ?";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param("si", $status, $id);
+            $stmt->bind_param("si", $status, $scholarship_id);
 
             if ($stmt->execute()) {
                 echo json_encode(['success' => true]);
@@ -95,7 +95,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
     exit;
 }
 
-// Fetch all scholarships
+// Fetch all scholarships for non-AJAX requests
 try {
     $sql = "SELECT * FROM Scholarships";
     $result = $conn->query($sql);
@@ -109,6 +109,7 @@ try {
     $scholarships = [];
     error_log("Error fetching scholarships: " . $e->getMessage());
 }
+
 ob_end_flush();
 ?>
 
@@ -255,10 +256,10 @@ ob_end_flush();
         <tbody id="scholarshipsTable">
           <?php foreach ($scholarships as $scholarship): ?>
             <?php
-              $id = isset($scholarship['id']) && $scholarship['id'] > 0 ? $scholarship['id'] : 0;
+              $scholarship_id = isset($scholarship['scholarship_id']) && $scholarship['scholarship_id'] > 0 ? $scholarship['scholarship_id'] : 0;
               $status = isset($scholarship['status']) && in_array($scholarship['status'], ['Open', 'Closed', 'Awarded']) ? $scholarship['status'] : 'Closed';
             ?>
-            <tr data-id="<?php echo htmlspecialchars($id); ?>">
+            <tr data-id="<?php echo htmlspecialchars($scholarship_id); ?>">
               <td><?php echo isset($scholarship['name']) ? htmlspecialchars($scholarship['name']) : 'N/A'; ?></td>
               <td>$<?php echo isset($scholarship['amount']) ? number_format($scholarship['amount'], 2) : '0.00'; ?></td>
               <td>
@@ -286,10 +287,10 @@ ob_end_flush();
                 </span>
               </td>
               <td>
-                <?php if ($id > 0): ?>
-                  <button class="btn btn-edit" onclick="editScholarship(<?php echo $id; ?>)">Edit</button>
-                  <button class="btn btn-delete" onclick="deleteScholarship(<?php echo $id; ?>)">Delete</button>
-                  <button class="btn btn-<?php echo $status == 'Open' ? 'danger' : 'success'; ?> btn-toggle" onclick="toggleApplicationWindow(<?php echo $id; ?>, '<?php echo $status == 'Open' ? 'Closed' : 'Open'; ?>')">
+                <?php if ($scholarship_id > 0): ?>
+                  <button class="btn btn-edit" onclick="editScholarship(<?php echo $scholarship_id; ?>)">Edit</button>
+                  <button class="btn btn-delete" onclick="deleteScholarship(<?php echo $scholarship_id; ?>)">Delete</button>
+                  <button class="btn btn-<?php echo $status == 'Open' ? 'danger' : 'success'; ?> btn-toggle" onclick="toggleApplicationWindow(<?php echo $scholarship_id; ?>, '<?php echo $status == 'Open' ? 'Closed' : 'Open'; ?>')">
                     <?php echo $status == 'Open' ? 'Close' : 'Open'; ?>
                   </button>
                 <?php else: ?>
@@ -366,18 +367,18 @@ ob_end_flush();
       editMode = false;
     }
 
-    async function editScholarship(id) {
-      if (!id) {
+    async function editScholarship(scholarship_id) {
+      if (!scholarship_id) {
         alert('Invalid scholarship ID');
         return;
       }
       editMode = true;
-      const row = document.querySelector(`tr[data-id="${id}"]`);
+      const row = document.querySelector(`tr[data-id="${scholarship_id}"]`);
       if (!row) return;
 
       const cells = row.cells;
       document.getElementById('addScholarshipModalLabel').textContent = 'Edit Scholarship';
-      document.getElementById('scholarshipId').value = id;
+      document.getElementById('scholarshipId').value = scholarship_id;
       document.getElementById('scholarshipName').value = cells[0].textContent !== 'N/A' ? cells[0].textContent : '';
       document.getElementById('scholarshipAmount').value = parseFloat(cells[1].textContent.replace('$', '').replace(',', '')) || '';
 
@@ -396,7 +397,7 @@ ob_end_flush();
     }
 
     async function saveScholarship() {
-      const id = document.getElementById('scholarshipId').value;
+      const scholarship_id = document.getElementById('scholarshipId').value;
       const name = document.getElementById('scholarshipName').value;
       const amount = document.getElementById('scholarshipAmount').value;
       const gpa = document.getElementById('criteriaGPA').value;
@@ -416,7 +417,7 @@ ob_end_flush();
 
       const data = {
         action: editMode ? 'edit' : 'add',
-        id: id,
+        scholarship_id: scholarship_id,
         name: name,
         amount: amount,
         gpa: gpa,
@@ -442,20 +443,20 @@ ob_end_flush();
           const applicationWindow = startDate && endDate ? `${startDate} to ${endDate}` : (endDate ? `Ends ${endDate}` : 'N/A');
 
           if (editMode) {
-            const row = document.querySelector(`tr[data-id="${id}"]`);
+            const row = document.querySelector(`tr[data-id="${scholarship_id}"]`);
             row.cells[0].textContent = name;
             row.cells[1].textContent = `$${parseFloat(amount).toLocaleString()}`;
             row.cells[2].textContent = criteriaText;
             row.cells[3].textContent = applicationWindow;
             row.cells[4].innerHTML = `<span class="badge bg-${status === 'Open' ? 'success' : (status === 'Awarded' ? 'info' : 'danger')}">${status}</span>`;
             row.cells[5].innerHTML = `
-              <button class="btn btn-edit" onclick="editScholarship(${id})">Edit</button>
-              <button class="btn btn-delete" onclick="deleteScholarship(${id})">Delete</button>
-              <button class="btn btn-${status === 'Open' ? 'danger' : 'success'} btn-toggle" onclick="toggleApplicationWindow(${id}, '${status === 'Open' ? 'Closed' : 'Open'}')">${status === 'Open' ? 'Close' : 'Open'}</button>
+              <button class="btn btn-edit" onclick="editScholarship(${scholarship_id})">Edit</button>
+              <button class="btn btn-delete" onclick="deleteScholarship(${scholarship_id})">Delete</button>
+              <button class="btn btn-${status === 'Open' ? 'danger' : 'success'} btn-toggle" onclick="toggleApplicationWindow(${scholarship_id}, '${status === 'Open' ? 'Closed' : 'Open'}')">${status === 'Open' ? 'Close' : 'Open'}</button>
             `;
           } else {
             const row = document.createElement('tr');
-            row.setAttribute('data-id', result.id);
+            row.setAttribute('data-id', result.scholarship_id);
             row.innerHTML = `
               <td>${name}</td>
               <td>$${parseFloat(amount).toLocaleString()}</td>
@@ -463,9 +464,9 @@ ob_end_flush();
               <td>${applicationWindow}</td>
               <td><span class="badge bg-${status === 'Open' ? 'success' : (status === 'Awarded' ? 'info' : 'danger')}">${status}</span></td>
               <td>
-                <button class="btn btn-edit" onclick="editScholarship(${result.id})">Edit</button>
-                <button class="btn btn-delete" onclick="deleteScholarship(${result.id})">Delete</button>
-                <button class="btn btn-${status === 'Open' ? 'danger' : 'success'} btn-toggle" onclick="toggleApplicationWindow(${result.id}, '${status === 'Open' ? 'Closed' : 'Open'}')">${status === 'Open' ? 'Close' : 'Open'}</button>
+                <button class="btn btn-edit" onclick="editScholarship(${result.scholarship_id})">Edit</button>
+                <button class="btn btn-delete" onclick="deleteScholarship(${result.scholarship_id})">Delete</button>
+                <button class="btn btn-${status === 'Open' ? 'danger' : 'success'} btn-toggle" onclick="toggleApplicationWindow(${result.scholarship_id}, '${status === 'Open' ? 'Closed' : 'Open'}')">${status === 'Open' ? 'Close' : 'Open'}</button>
               </td>
             `;
             tableBody.appendChild(row);
@@ -482,21 +483,29 @@ ob_end_flush();
       }
     }
 
-    async function deleteScholarship(id) {
+    async function deleteScholarship(scholarship_id) {
       if (!confirm('Are you sure you want to delete this scholarship?')) return;
 
       try {
         const response = await fetch('', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ action: 'delete', id: id })
+          body: new URLSearchParams({ action: 'delete', scholarship_id: scholarship_id })
         });
         const text = await response.text();
         console.log('Raw response:', text);
-        const result = JSON.parse(text);
+
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch (e) {
+            console.error('JSON parse error:', e);
+            alert('Server returned an invalid response. Check the console for details.');
+            return;
+        }
 
         if (result.success) {
-          document.querySelector(`tr[data-id="${id}"]`).remove();
+          document.querySelector(`tr[data-id="${scholarship_id}"]`).remove();
         } else {
           alert(result.message);
         }
@@ -506,7 +515,7 @@ ob_end_flush();
       }
     }
 
-    async function toggleApplicationWindow(id, newStatus) {
+    async function toggleApplicationWindow(scholarship_id, newStatus) {
       if (!['Open', 'Closed'].includes(newStatus)) {
         alert('Invalid status');
         return;
@@ -515,19 +524,27 @@ ob_end_flush();
         const response = await fetch('', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ action: 'toggle', id: id, status: newStatus })
+          body: new URLSearchParams({ action: 'toggle', scholarship_id: scholarship_id, status: newStatus })
         });
         const text = await response.text();
         console.log('Raw response:', text);
-        const result = JSON.parse(text);
+
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch (e) {
+            console.error('JSON parse error:', e);
+            alert('Server returned an invalid response. Check the console for details.');
+            return;
+        }
 
         if (result.success) {
-          const row = document.querySelector(`tr[data-id="${id}"]`);
+          const row = document.querySelector(`tr[data-id="${scholarship_id}"]`);
           row.cells[4].innerHTML = `<span class="badge bg-${newStatus === 'Open' ? 'success' : 'danger'}">${newStatus}</span>`;
           row.cells[5].innerHTML = `
-            <button class="btn btn-edit" onclick="editScholarship(${id})">Edit</button>
-            <button class="btn btn-delete" onclick="deleteScholarship(${id})">Delete</button>
-            <button class="btn btn-${newStatus === 'Open' ? 'danger' : 'success'} btn-toggle" onclick="toggleApplicationWindow(${id}, '${newStatus === 'Open' ? 'Closed' : 'Open'}')">${newStatus === 'Open' ? 'Close' : 'Open'}</button>
+            <button class="btn btn-edit" onclick="editScholarship(${scholarship_id})">Edit</button>
+            <button class="btn btn-delete" onclick="deleteScholarship(${scholarship_id})">Delete</button>
+            <button class="btn btn-${newStatus === 'Open' ? 'danger' : 'success'} btn-toggle" onclick="toggleApplicationWindow(${scholarship_id}, '${newStatus === 'Open' ? 'Closed' : 'Open'}')">${newStatus === 'Open' ? 'Close' : 'Open'}</button>
           `;
         } else {
           alert(result.message);

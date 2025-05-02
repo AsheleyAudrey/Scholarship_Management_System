@@ -135,7 +135,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <input type="password" class="input-field" placeholder="Enter Password" name="password" required>
             <button class="login-btn" type="submit">Login</button>
             <div class="signup-link">
-                Already have an account? <a href="signup.php">Sign up</a>
+               Don't have an account? <a href="signup.php">Sign up</a>
             </div>
         </form>
     </div>

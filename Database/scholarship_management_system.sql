@@ -1,5 +1,6 @@
 -- Create the Scholarship Database
 CREATE DATABASE Scholarship_db;
+USE Scholarship_db;
 
 -- Table for storing user accounts (students, reviewers, admins, sponsors)
 CREATE TABLE Users (
@@ -27,7 +28,7 @@ CREATE TABLE Students (
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
 
--- Table for listing available scholarships (merged from both definitions)
+-- Table for listing available scholarships
 CREATE TABLE Scholarships (
     scholarship_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
@@ -40,25 +41,25 @@ CREATE TABLE Scholarships (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Table for storing scholarship applications (merged from both definitions)
+-- Table for storing scholarship applications
 CREATE TABLE Applications (
     application_id INT PRIMARY KEY AUTO_INCREMENT,
     student_id INT NOT NULL,
     scholarship_id INT NOT NULL,
     submission_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    document_url VARCHAR(255) DEFAULT NULL,
     status ENUM('Submitted', 'Pending', 'Under Review', 'Approved', 'Accepted', 'Rejected', 'Needs More Info') DEFAULT 'Submitted',
     FOREIGN KEY (student_id) REFERENCES Students(student_id) ON DELETE CASCADE,
     FOREIGN KEY (scholarship_id) REFERENCES Scholarships(scholarship_id) ON DELETE CASCADE
 );
 
--- Table for storing documents (merged ApplicationDocuments and Documents)
-CREATE TABLE Documents (
+-- Table for storing documents
+CREATE TABLE Document (
     document_id INT PRIMARY KEY AUTO_INCREMENT,
-    application_id INT NOT NULL,
-    document_type ENUM('Transcript', 'Recommendation Letter', 'Financial Statement', 'Other') NOT NULL,
-    file_path VARCHAR(255) NOT NULL,
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (application_id) REFERENCES Applications(application_id) ON DELETE CASCADE
+    url VARCHAR(255) NOT NULL,
+    type ENUM('Transcript', 'Recommendation Letter', 'Financial Statement', 'Other') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- Table for storing the review committee members
@@ -71,7 +72,7 @@ CREATE TABLE ReviewCommittee (
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
 
--- Table for storing reviews (merged from both definitions)
+-- Table for storing reviews
 CREATE TABLE Reviews (
     review_id INT PRIMARY KEY AUTO_INCREMENT,
     application_id INT NOT NULL,
@@ -121,16 +122,16 @@ INSERT INTO Students
 (4, 'Amber', 'David', 'amberdavid@example.com', '1234567890', '2000-05-15', '2023-09-01', 'Accounting', 3.75, 'Active');
 
 -- Insert sample data into Applications table
-INSERT INTO Applications (student_id, scholarship_id, submission_date, status) VALUES 
-(1, 1, '2025-03-01 10:00:00', 'Pending'),
-(1, 2, '2025-03-02 12:00:00', 'Under Review'),
-(1, 3, '2025-03-03 14:00:00', 'Approved');
+INSERT INTO Applications (student_id, scholarship_id, submission_date, document_url, status) VALUES 
+(1, 1, '2025-03-01 10:00:00', '/uploads/new_documents/transcript_new.pdf', 'Pending'),
+(1, 2, '2025-03-02 12:00:00', '/uploads/new_documents/recommendation_new.pdf', 'Under Review'),
+(1, 3, '2025-03-03 14:00:00', '/uploads/new_documents/financial_new.pdf', 'Approved');
 
--- Insert sample data into Documents table
-INSERT INTO Documents (application_id, document_type, file_path) VALUES 
-(1, 'Transcript', '/uploads/documents/transcript_1.pdf'),
-(2, 'Recommendation Letter', '/uploads/documents/recommendation_2.pdf'),
-(3, 'Financial Statement', '/uploads/documents/financial_3.pdf');
+-- Insert sample data into Document table
+INSERT INTO Document (url, type) VALUES
+('/uploads/new_documents/transcript_new.pdf', 'Transcript'),
+('/uploads/new_documents/recommendation_new.pdf', 'Recommendation Letter'),
+('/uploads/new_documents/financial_new.pdf', 'Financial Statement');
 
 -- Insert sample data into Reviews table
 INSERT INTO Reviews (application_id, reviewer_id, review_date, score, comments, decision) VALUES 
@@ -153,13 +154,13 @@ SELECT * FROM Students;
 SELECT * FROM Scholarships;
 
 -- List all applications with student’s name, scholarship applied for, and application status
-SELECT a.application_id, s.first_name, s.last_name, sc.name AS scholarship_name, a.status
+SELECT a.application_id, s.first_name, s.last_name, sc.name AS scholarship_name, a.status, a.document_url
 FROM Applications a
 JOIN Students s ON a.student_id = s.student_id
 JOIN Scholarships sc ON a.scholarship_id = sc.scholarship_id;
 
 -- Show all approved applications with student and scholarship details
-SELECT a.application_id, s.first_name, s.last_name, sc.name AS scholarship_name
+SELECT a.application_id, s.first_name, s.last_name, sc.name AS scholarship_name, a.document_url
 FROM Applications a
 JOIN Students s ON a.student_id = s.student_id
 JOIN Scholarships sc ON a.scholarship_id = sc.scholarship_id
@@ -175,7 +176,7 @@ FROM Students
 WHERE status = 'Scholarship Awarded';
 
 -- Display student details and their scholarship application status
-SELECT s.student_id, s.first_name, s.last_name, a.application_id, a.status 
+SELECT s.student_id, s.first_name, s.last_name, a.application_id, a.status, a.document_url
 FROM Students s
 JOIN Applications a ON s.student_id = a.student_id;
 
