@@ -52,17 +52,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($scholarship_id <= 0) {
         $errorMessage = "Please select a valid scholarship.";
     } else {
-        // Handle document uploads
-        $filestackApiKey = "Af2hmpknVRcWFFfQsVEq2z";
+        // Replace this part in your code:
         $files = ['transcript', 'recommendation', 'financial'];
         $uploadedFiles = [];
         $docTypes = ['Transcript', 'Recommendation Letter', 'Financial Statement'];
 
-        // Filestack Upload Function
-        function uploadToFilestack($fileTmpPath, $fileName, $fileType, $apiKey) {
-            $url = "https://www.filestackapi.com/api/store/S3?key=" . $apiKey;
+        // Upload Function to your server
+        function uploadToServer($fileTmpPath, $fileName, $fileType) {
+            $url = "https://3.255.226.198.sslip.io/image/upload";
+
+            // The body attribute must be "image"
             $cfile = new CURLFile($fileTmpPath, $fileType, $fileName);
-            $postData = ['fileUpload' => $cfile];
+            $postData = ["image" => $cfile];
 
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
@@ -71,43 +72,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
             $result = curl_exec($ch);
-            $error = curl_error($ch);
+            $error  = curl_error($ch);
             curl_close($ch);
 
-            if ($error) return false;
+            if ($error) {
+                return false;
+            }
 
+            // Response contains "imageUrl" instead of "url"
             $response = json_decode($result, true);
-            return $response['url'] ?? false;
+            return $response['imageUrl'] ?? false;
         }
+
 
         foreach ($files as $index => $fileKey) {
             if (isset($_FILES[$fileKey]) && $_FILES[$fileKey]['error'] === UPLOAD_ERR_OK) {
                 $file = $_FILES[$fileKey];
                 $fileType = $file['type'];
-                $fileSize = $file['size'];
                 $fileName = basename($file['name']);
 
-                // Validate file type and size
-                if (!in_array($fileType, ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])) {
+                // Validate file type
+                if (!in_array($fileType, [
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                ])) {
                     $errorMessage = "Invalid file type for {$docTypes[$index]}. Only PDF, DOC, and DOCX are allowed.";
                     break;
                 }
-                // if ($fileSize > 5 * 1024 * 1024) {
-                //     $errorMessage = "File size for {$docTypes[$index]} exceeds 5MB.";
-                //     break;
-                // }
 
-                // Upload to Filestack
-                $url = uploadToFilestack($file['tmp_name'], $fileName, $fileType, $filestackApiKey);
+                // Upload to your custom server
+                $url = uploadToServer($file['tmp_name'], $fileName, $fileType);
                 if (!$url) {
-                    $errorMessage = "Failed to upload {$docTypes[$index]} to Filestack.";
+                    $errorMessage = "Failed to upload {$docTypes[$index]} to server.";
                     break;
                 }
 
-                // Save Filestack URL
+                // Save uploaded file URL
                 $uploadedFiles[] = ['url' => $url, 'type' => $docTypes[$index]];
             }
         }
+
 
         // If no error, proceed to save data into database
         if (empty($errorMessage)) {

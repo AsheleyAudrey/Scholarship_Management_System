@@ -53,14 +53,18 @@ CREATE TABLE Applications (
     FOREIGN KEY (scholarship_id) REFERENCES Scholarships(scholarship_id) ON DELETE CASCADE
 );
 
--- Table for storing documents
+
+
 CREATE TABLE Document (
     document_id INT PRIMARY KEY AUTO_INCREMENT,
+    application_id INT NOT NULL,
     url VARCHAR(255) NOT NULL,
     type ENUM('Transcript', 'Recommendation Letter', 'Financial Statement', 'Other') NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (application_id) REFERENCES Applications(application_id) ON DELETE CASCADE
 );
+
 
 -- Table for storing the review committee members
 CREATE TABLE ReviewCommittee (
