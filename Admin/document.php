@@ -1,324 +1,114 @@
+<?php
+include "../Database/db.php";
+session_start();
+
+// Fetch all uploaded documents with student info
+$sql = "SELECT d.document_id, d.application_id, d.url, d.type, d.created_at, d.updated_at,
+               s.student_id, s.first_name, s.last_name
+        FROM Document d
+        JOIN Applications a ON d.application_id = a.application_id
+        JOIN Students s ON a.student_id = s.student_id
+        ORDER BY d.created_at DESC";
+
+$result = $conn->query($sql);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Documents</title>
-  
-  <!-- Bootstrap CSS -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
-  <!-- Bootstrap Icons -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
-    rel="stylesheet"
-  />
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
+
   <style>
-
-    /* Adjust main content to account for fixed sidebar */
-    .main-content {
-      background-color: #f8f9fa; /* Light gray background for main content */
-      min-height: 100vh;
-    }
-
-    /* Header styling */
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    .page-header h1 {
-      font-size: 24px;
-      font-weight: 600;
-      color: #333;
-    }
-
-    /* Set Required Documents Button */
-    .page-header .btn-set {
-      background-color: #509CDB; /* Match active item color */
-      border: none;
-      padding: 10px 20px;
-      font-size: 16px;
-      color: #ffffff;
-    }
-
-    .page-header .btn-set:hover {
-      background-color: #408CCB;
-    }
-
-    /* Documents Table */
-    .documents-table {
-      background-color: #ffffff;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-    }
-
-    .documents-table .table {
-      margin-bottom: 0;
-    }
-
-    .documents-table .table th {
-      background-color: #152259; /* Match sidebar color */
-      color: #ffffff;
-    }
-
-    .documents-table .table td {
-      vertical-align: middle;
-    }
-
-    .documents-table .table .badge {
-      font-size: 12px;
-    }
-
-    .documents-table .file-icon {
-      font-size: 20px;
-      margin-right: 5px;
-      color: #509CDB; /* Match active item color */
-    }
-
-    .documents-table .btn-upload {
-      background-color: #17a2b8; /* Cyan for upload */
-      border: none;
-      font-size: 14px;
-      padding: 5px 10px;
-      margin-right: 5px;
-    }
-
-    .documents-table .btn-upload:hover {
-      background-color: #138496;
-    }
-
-    .documents-table .btn-download {
-      background-color: #28a745; /* Green for download */
-      border: none;
-      font-size: 14px;
-      padding: 5px 10px;
-      margin-right: 5px;
-    }
-
-    .documents-table .btn-download:hover {
-      background-color: #218838;
-    }
-
-    .documents-table .btn-preview {
-      background-color: #509CDB; /* Match active item color */
-      border: none;
-      font-size: 14px;
-      padding: 5px 10px;
-      margin-right: 5px;
-    }
-
-    .documents-table .btn-preview:hover {
-      background-color: #408CCB;
-    }
-
-    .documents-table .btn-verify {
-      font-size: 14px;
-      padding: 5px 10px;
-    }
-
-    /* Modal Form Styling */
-    .modal-content {
-      border-radius: 8px;
-    }
-
-    .modal-header {
-      background-color: #152259; /* Match sidebar color */
-      color: #ffffff;
-    }
-
-    .modal-header .btn-close {
-      filter: invert(1);
-    }
-
-    .modal-body .form-label {
-      font-weight: 500;
-      color: #333;
-    }
-
-    .modal-body .form-control,
-    .modal-body .form-check-input {
-      border-radius: 5px;
-      border: 1px solid #ced4da;
-      box-shadow: none;
-    }
-
-    .modal-body .form-control:focus,
-    .modal-body .form-check-input:focus {
-      border-color: #509CDB; /* Match active item color */
-      box-shadow: 0 0 5px rgba(80, 156, 219, 0.3);
-    }
-
-    .modal-footer .btn-save {
-      background-color: #509CDB; /* Match active item color */
-      border: none;
-    }
-
-    .modal-footer .btn-save:hover {
-      background-color: #408CCB;
-    }
-
-    /* Preview Modal */
-    .modal-body .document-preview {
-      width: 100%;
-      height: 400px;
-      border: 1px solid #ced4da;
-      border-radius: 5px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: #f8f9fa;
-    }
-
-    .modal-body .document-preview img {
-      max-width: 100%;
-      max-height: 100%;
-    }
+    .main-content { background:#f8f9fa; min-height:100vh; }
+    .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .page-header h1 { font-size:24px; font-weight:600; color:#333; }
+    .page-header .btn-set { background:#509CDB; border:none; padding:10px 20px; font-size:16px; color:#fff; }
+    .page-header .btn-set:hover { background:#408CCB; }
+    .documents-table { background:#fff; border-radius:8px; padding:20px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+    .documents-table .table th { background:#152259; color:#fff; }
+    .file-icon { font-size:18px; margin-right:5px; color:#509CDB; }
   </style>
 </head>
 <body>
-    <!-- Sidebar -->
-     <?php include 'sidebar.php'; ?>
-  <!-- Main content -->
-    <div class="main-content">
-      <!-- Header -->
-      <div class="page-header">
-        <h1>Documents</h1>
-        <button class="btn btn-set" data-bs-toggle="modal" data-bs-target="#setRequiredDocsModal">
-          <i class="bi bi-gear me-2"></i> Set Required Documents
-        </button>
-      </div>
+<?php include 'sidebar.php'; ?>
 
-      <!-- Documents Table -->
-      <div class="documents-table">
-        <table class="table table-hover">
-          <thead>
+<div class="main-content p-4">
+  <!-- Header -->
+  <div class="page-header">
+    <h1>Documents</h1>
+    <button class="btn btn-set" data-bs-toggle="modal" data-bs-target="#setRequiredDocsModal">
+      <i class="bi bi-gear me-2"></i> Set Required Documents
+    </button>
+  </div>
+
+  <!-- Documents Table -->
+  <div class="documents-table">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Student ID</th>
+          <th>Student Name</th>
+          <th>Document Type</th>
+          <th>File</th>
+          <th>Uploaded At</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if ($result && $result->num_rows > 0): ?>
+          <?php while ($row = $result->fetch_assoc()): ?>
             <tr>
-              <th>Student ID</th>
-              <th>Student Name</th>
-              <th>Document Type</th>
-              <th>File</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="documentsTable">
-            <tr>
-              <td>S001</td>
-              <td>John Doe</td>
-              <td>Transcript</td>
-              <td><i class="bi bi-file-earmark-pdf file-icon"></i> transcript.pdf</td>
-              <td><span class="badge bg-warning">Pending</span></td>
+              <td><?= htmlspecialchars($row['student_id']) ?></td>
+              <td><?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) ?></td>
+              <td><?= htmlspecialchars($row['type']) ?></td>
               <td>
-                <button class="btn btn-preview" data-bs-toggle="modal" data-bs-target="#previewModal" onclick="previewDocument(this)">Preview</button>
-                <button class="btn btn-download" onclick="downloadDocument(this)">Download</button>
-                <button class="btn btn-success btn-verify" onclick="verifyDocument(this)">Verify</button>
+                <i class="bi bi-file-earmark-text file-icon"></i>
+                <?= htmlspecialchars(basename($row['url'])) ?>
+              </td>
+              <td><?= htmlspecialchars($row['created_at']) ?></td>
+              <td>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#previewModal"
+                        onclick="previewDocument('<?= $row['url'] ?>')">Preview</button>
+                <a href="<?= $row['url'] ?>" class="btn btn-sm btn-success" download>Download</a>
               </td>
             </tr>
-            <tr>
-              <td>S001</td>
-              <td>John Doe</td>
-              <td>Recommendation Letter</td>
-              <td><i class="bi bi-file-earmark-word file-icon"></i> letter.docx</td>
-              <td><span class="badge bg-warning">Pending</span></td>
-              <td>
-                <button class="btn btn-preview" data-bs-toggle="modal" data-bs-target="#previewModal" onclick="previewDocument(this)">Preview</button>
-                <button class="btn btn-download" onclick="downloadDocument(this)">Download</button>
-                <button class="btn btn-success btn-verify" onclick="verifyDocument(this)">Verify</button>
-              </td>
-            </tr>
-            <tr>
-              <td>S002</td>
-              <td>Jane Smith</td>
-              <td>Transcript</td>
-              <td><i class="bi bi-file-earmark-pdf file-icon"></i> transcript.pdf</td>
-              <td><span class="badge bg-success">Verified</span></td>
-              <td>
-                <button class="btn btn-preview" data-bs-toggle="modal" data-bs-target="#previewModal" onclick="previewDocument(this)">Preview</button>
-                <button class="btn btn-download" onclick="downloadDocument(this)">Download</button>
-              </td>
-            </tr>
-            <tr>
-              <td>S003</td>
-              <td>Emily Johnson</td>
-              <td>Transcript</td>
-              <td>
-                <input type="file" class="form-control" onchange="uploadDocument(this)">
-              </td>
-              <td><span class="badge bg-secondary">Not Uploaded</span></td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
+          <?php endwhile; ?>
+        <?php else: ?>
+          <tr><td colspan="6" class="text-center">No documents uploaded yet.</td></tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="previewModalLabel">Document Preview</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <iframe id="previewFrame" src="" width="100%" height="500px" style="border:none;"></iframe>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Set Required Documents Modal -->
-  <div class="modal fade" id="setRequiredDocsModal" tabindex="-1" aria-labelledby="setRequiredDocsModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="setRequiredDocsModalLabel">Set Required Documents</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <form id="requiredDocsForm">
-            <div class="mb-3 form-check">
-              <input type="checkbox" class="form-check-input" id="transcriptRequired" checked>
-              <label class="form-check-label" for="transcriptRequired">Transcript</label>
-            </div>
-            <div class="mb-3 form-check">
-              <input type="checkbox" class="form-check-input" id="recommendationLetterRequired">
-              <label class="form-check-label" for="recommendationLetterRequired">Recommendation Letter</label>
-            </div>
-            <div class="mb-3 form-check">
-              <input type="checkbox" class="form-check-input" id="financialStatementRequired">
-              <label class="form-check-label" for="financialStatementRequired">Financial Statement</label>
-            </div>
-            <div class="mb-3 form-check">
-              <input type="checkbox" class="form-check-input" id="essayRequired">
-              <label class="form-check-label" for="essayRequired">Essay</label>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-save" onclick="saveRequiredDocs()">Save</button>
-        </div>
-      </div>
-    </div>
-  </div>
+<script>
+function previewDocument(filePath) {
+  document.getElementById("previewFrame").src = filePath;
+}
+</script>
 
-  <!-- Preview Document Modal -->
-  <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="previewModalLabel">Document Preview</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="document-preview" id="documentPreview">
-            <p>Preview not available for this file type.</p>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Bootstrap JS -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-  ></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
+<?php $conn->close(); ?>

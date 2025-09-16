@@ -114,6 +114,37 @@ CREATE TABLE FraudLogs (
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE SET NULL
 );
 
+
+CREATE TABLE funds (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  total_balance DECIMAL(12,2) NOT NULL
+);
+
+
+CREATE TABLE transactions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  type ENUM('Allocation','Disbursement') NOT NULL,
+  scholarship_id INT NULL,
+  student VARCHAR(255) NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  CONSTRAINT fk_scholarship
+    FOREIGN KEY (scholarship_id) REFERENCES Scholarships(scholarship_id)
+    ON DELETE SET NULL
+    ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE required_documents (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  scholarship_id INT NOT NULL,
+  doc_type VARCHAR(100) NOT NULL, -- e.g., 'Transcript', 'ID Card'
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (scholarship_id) REFERENCES Scholarships(scholarship_id)
+);
+
+
+
+
 -- Insert sample data for each table:
 
 -- Insert sample data into Users table
@@ -152,6 +183,14 @@ INSERT INTO Document (url, type) VALUES
 ('/uploads/new_documents/recommendation_new.pdf', 'Recommendation Letter'),
 ('/uploads/new_documents/financial_new.pdf', 'Financial Statement');
 
+
+INSERT INTO Document (application_id, url, type, created_at, updated_at)
+VALUES 
+(1, '/uploads/new_documents/transcript_new.pdf', 'Transcript', NOW(), NOW()),
+(2, '/uploads/new_documents/recommendation_new.pdf', 'Recommendation Letter', NOW(), NOW()),
+(3, '/uploads/new_documents/financial_new.pdf', 'Financial Statement', NOW(), NOW());
+
+
 -- Insert sample data into Reviews table
 INSERT INTO Reviews (application_id, reviewer_id, review_date, score, comments, decision) VALUES 
 (1, 1, '2025-03-05 09:00:00', 85.50, 'Strong academic performance, meets all criteria.', 'Approved'),
@@ -176,6 +215,35 @@ INSERT INTO FraudLogs (user_id, log_type, reason, details, ip_address, flagged_d
 (1, 'User Activity', 'Login', 'Successful login', '192.168.1.1', '2025-04-05 10:00:00'),
 (4, 'User Activity', 'Document Upload', 'Duplicate document detected', '192.168.1.2', '2025-04-05 10:15:00'),
 (4, 'User Activity', 'Application Submission', 'Multiple submissions from same IP', '192.168.1.2', '2025-04-06 14:30:00');
+
+INSERT INTO transactions (type, scholarship_id, student, amount)
+VALUES ('Allocation', NULL, 'System', 5000.00);
+
+UPDATE Scholarships 
+SET allocated_amount = allocated_amount + 2000 
+WHERE scholarship_id = 1;
+
+INSERT INTO transactions (type, scholarship_id, student, amount)
+VALUES ('Disbursement', 1, 'John Doe', 1000.00);
+
+INSERT INTO funds (id, total_balance) 
+VALUES (1, 0.00);
+
+UPDATE funds 
+SET total_balance = total_balance + 10000 
+WHERE id = 1;
+
+INSERT INTO required_documents (scholarship_id, doc_type)
+VALUES (1, 'Transcript');
+
+
+INSERT INTO required_documents (scholarship_id, doc_type) 
+VALUES 
+(1, 'Transcript'),
+(1, 'Recommendation Letter'),
+(2, 'ID Card');
+
+
 -- SQL queries to show functionality:
 
 -- Show all students in the system
@@ -236,3 +304,8 @@ SELECT u.user_id, u.username, u.role, u.student_id, s.first_name, s.last_name
 FROM Users u
 LEFT JOIN Students s ON u.student_id = s.student_id
 WHERE u.role = 'Student' AND u.approval_status = 'Approved';
+
+
+ALTER TABLE scholarships 
+ADD COLUMN allocated_amount DECIMAL(12,2) DEFAULT 0,
+ADD COLUMN target_amount DECIMAL(12,2) DEFAULT 0;
