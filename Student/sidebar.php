@@ -99,9 +99,7 @@
         <a href="apply_now.php" class="nav-link">
           <i class="bi bi-pencil-square me-2"></i> Apply Now
         </a>
-        <a href="upload_document.php" class="nav-link">
-          <i class="bi bi-upload me-2"></i> Upload Documents
-        </a>
+       
         <a href="notification.php" class="nav-link">
           <i class="bi bi-bell me-2"></i> Notifications
         </a>
