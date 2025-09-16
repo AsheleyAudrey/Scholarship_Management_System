@@ -41,9 +41,6 @@ $result = $conn->query($sql);
   <!-- Header -->
   <div class="page-header">
     <h1>Documents</h1>
-    <button class="btn btn-set" data-bs-toggle="modal" data-bs-target="#setRequiredDocsModal">
-      <i class="bi bi-gear me-2"></i> Set Required Documents
-    </button>
   </div>
 
   <!-- Documents Table -->
