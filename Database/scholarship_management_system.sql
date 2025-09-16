@@ -134,13 +134,6 @@ CREATE TABLE transactions (
     ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE required_documents (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  scholarship_id INT NOT NULL,
-  doc_type VARCHAR(100) NOT NULL, -- e.g., 'Transcript', 'ID Card'
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (scholarship_id) REFERENCES Scholarships(scholarship_id)
-);
 
 
 
@@ -233,15 +226,6 @@ UPDATE funds
 SET total_balance = total_balance + 10000 
 WHERE id = 1;
 
-INSERT INTO required_documents (scholarship_id, doc_type)
-VALUES (1, 'Transcript');
-
-
-INSERT INTO required_documents (scholarship_id, doc_type) 
-VALUES 
-(1, 'Transcript'),
-(1, 'Recommendation Letter'),
-(2, 'ID Card');
 
 
 -- SQL queries to show functionality:
