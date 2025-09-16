@@ -1,17 +1,5 @@
-<?php
-// Start session for reviewer authentication
-session_start();
-
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Database connection with error handling
-$servername = "localhost";
-$username = "root";
-$password = "password"; // Replace with your actual MySQL root password
-$dbname = "Scholarship_db";
-$port = 3306;
+<?php 
+include "../Database/db.php";
 
 $conn = new mysqli($servername, $username, $password, $dbname, $port);
 if ($conn->connect_error) {

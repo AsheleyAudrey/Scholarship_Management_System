@@ -1,13 +1,5 @@
-<?php
-// Start session (for admin authentication)
-session_start();
-
-// Database connection with error handling
-$servername = "localhost";
-$username = "root";
-$password = "password"; // Replace with your actual MySQL root password
-$dbname = "Scholarship_db"; // Match database name from SQL file
-$port = 3306;
+<?php 
+include "../Database/db.php";
 
 $conn = new mysqli($servername, $username, $password, $dbname, $port);
 if ($conn->connect_error) {

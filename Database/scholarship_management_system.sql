@@ -95,6 +95,21 @@ CREATE TABLE Notifications (
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
 
+
+CREATE TABLE FraudLogs (
+    log_id INT PRIMARY KEY AUTO_INCREMENT,
+    application_id INT DEFAULT NULL,
+    user_id INT DEFAULT NULL,
+    log_type ENUM('Flagged Application', 'User Activity') NOT NULL,
+    reason VARCHAR(255) NOT NULL,
+    details TEXT DEFAULT NULL,
+    ip_address VARCHAR(45) DEFAULT NULL,
+    flagged_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('Under Review', 'Cleared') DEFAULT 'Under Review',
+    FOREIGN KEY (application_id) REFERENCES Applications(application_id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE SET NULL
+);
+
 -- Insert sample data for each table:
 
 -- Insert sample data into Users table
@@ -145,6 +160,18 @@ INSERT INTO Notifications (user_id, message, status) VALUES
 (4, 'A reviewer has requested additional documents.', 'Unread'),
 (4, 'Your application has been approved! Congratulations!', 'Read');
 
+
+-- Insert sample flagged applications
+INSERT INTO FraudLogs (application_id, user_id, log_type, reason, details, ip_address, flagged_date, status) VALUES
+(1, 4, 'Flagged Application', 'Duplicate Document Detected', 'Transcript matches another submission', '192.168.1.1', '2025-04-05 10:00:00', 'Under Review'),
+(2, 4, 'Flagged Application', 'Multiple Applications', 'Multiple submissions from same IP', '192.168.1.2', '2025-04-06 14:30:00', 'Under Review'),
+(3, 4, 'Flagged Application', 'Suspicious IP Address', 'IP linked to multiple accounts', '192.168.1.3', '2025-04-07 12:00:00', 'Cleared');
+
+-- Insert sample user activity logs
+INSERT INTO FraudLogs (user_id, log_type, reason, details, ip_address, flagged_date) VALUES
+(1, 'User Activity', 'Login', 'Successful login', '192.168.1.1', '2025-04-05 10:00:00'),
+(4, 'User Activity', 'Document Upload', 'Duplicate document detected', '192.168.1.2', '2025-04-05 10:15:00'),
+(4, 'User Activity', 'Application Submission', 'Multiple submissions from same IP', '192.168.1.2', '2025-04-06 14:30:00');
 -- SQL queries to show functionality:
 
 -- Show all students in the system
@@ -188,3 +215,20 @@ SELECT s.student_id, s.first_name, s.last_name
 FROM Students s
 LEFT JOIN Applications a ON s.student_id = a.student_id
 WHERE a.application_id IS NULL;
+
+SELECT * FROM Applications WHERE application_id IN (1, 2, 3);
+SELECT * FROM Students WHERE student_id = 1;
+SELECT * FROM Users WHERE user_id IN (1, 4);
+
+
+
+ALTER TABLE Users
+ADD student_id INT DEFAULT NULL,
+ADD FOREIGN KEY (student_id) REFERENCES Students(student_id) ON DELETE SET NULL;
+
+UPDATE Users SET student_id = 1 WHERE user_id = 4;
+
+SELECT u.user_id, u.username, u.role, u.student_id, s.first_name, s.last_name
+FROM Users u
+LEFT JOIN Students s ON u.student_id = s.student_id
+WHERE u.role = 'Student' AND u.approval_status = 'Approved';

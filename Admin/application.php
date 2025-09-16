@@ -1,10 +1,77 @@
+ <?php 
+include "../Database/db.php";
+
+$applicationQuery = "SELECT * FROM Applications";
+
+$applicationQueryResult = $conn->query($applicationQuery);
+if (!$applicationQueryResult) {
+    die("Query failed: " . $conn->error);
+}
+
+$applications = [];
+while ($row = $applicationQueryResult->fetch_assoc()) {
+    $applications[] = $row;
+}
+
+// Applications structure
+// {student id, application_id, scholarship_id, date_submitted, status, document_url}
+
+// Students table and Scholaships table
+// Get the actual student names and scholarship names
+$students = [];
+$studentQuery = "SELECT * FROM Students";
+$studentQueryResult = $conn->query($studentQuery);
+if (!$studentQueryResult) {
+    die("Query failed: " . $conn->error);
+}
+while ($row = $studentQueryResult->fetch_assoc()) {
+    $students[$row['student_id']] = $row['name'];
+}
+$scholarships = [];
+$scholarshipQuery = "SELECT * FROM Scholarships";
+$scholarshipQueryResult = $conn->query($scholarshipQuery);
+if (!$scholarshipQueryResult) {
+    die("Query failed: " . $conn->error);
+}
+while ($row = $scholarshipQueryResult->fetch_assoc()) {
+    $scholarships[$row['scholarship_id']] = $row['name'];
+}
+
+?>
+
+<?php
+include "../Database/db.php";
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $application_id = intval($_POST['application_id']);
+    $action = $_POST['action'];
+
+    if (!in_array($action, ['approve', 'reject'])) {
+        echo json_encode(['success' => false, 'message' => 'Invalid action']);
+        exit;
+    }
+
+    $newStatus = $action === 'approve' ? 'Approved' : 'Rejected';
+
+    $stmt = $conn->prepare("UPDATE Applications SET status = ? WHERE application_id = ?");
+    $stmt->bind_param("si", $newStatus, $application_id);
+
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false, 'message' => $stmt->error]);
+    }
+    $stmt->close();
+}
+?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Application Management</title>
-  
   <!-- Bootstrap CSS -->
   <link
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
@@ -210,52 +277,45 @@
                 </tr>
               </thead>
               <tbody>
-                <tr data-status="Pending">
-                  <td>#001</td>
-                  <td>John Doe</td>
-                  <td>Merit-Based Scholarship</td>
-                  <td>2025-04-01</td>
-                  <td><span class="badge bg-warning">Pending</span></td>
-                  <td>
-                    <button class="btn btn-approve" data-bs-toggle="modal" data-bs-target="#approveModal" onclick="setAction(this, 'approve')">Approve</button>
-                    <button class="btn btn-reject" data-bs-toggle="modal" data-bs-target="#rejectModal" onclick="setAction(this, 'reject')">Reject</button>
-                    <button class="btn btn-download" onclick="downloadPDF(this)">Download PDF</button>
-                    <button class="btn btn-assign" data-bs-toggle="modal" data-bs-target="#assignModal" onclick="setAssign(this)">Assign</button>
-                  </td>
-                </tr>
-                <tr data-status="Pending">
-                  <td>#002</td>
-                  <td>Jane Smith</td>
-                  <td>Need-Based Scholarship</td>
-                  <td>2025-04-02</td>
-                  <td><span class="badge bg-warning">Pending</span></td>
-                  <td>
-                    <button class="btn btn-approve" data-bs-toggle="modal" data-bs-target="#approveModal" onclick="setAction(this, 'approve')">Approve</button>
-                    <button class="btn btn-reject" data-bs-toggle="modal" data-bs-target="#rejectModal" onclick="setAction(this, 'reject')">Reject</button>
-                    <button class="btn btn-download" onclick="downloadPDF(this)">Download PDF</button>
-                    <button class="btn btn-assign" data-bs-toggle="modal" data-bs-target="#assignModal" onclick="setAssign(this)">Assign</button>
-                  </td>
-                </tr>
-                <tr data-status="Approved">
-                  <td>#003</td>
-                  <td>Emily Johnson</td>
-                  <td>STEM Scholarship</td>
-                  <td>2025-03-25</td>
-                  <td><span class="badge bg-success">Approved</span></td>
-                  <td>
-                    <button class="btn btn-download" onclick="downloadPDF(this)">Download PDF</button>
-                  </td>
-                </tr>
-                <tr data-status="Rejected">
-                  <td>#004</td>
-                  <td>Michael Brown</td>
-                  <td>Merit-Based Scholarship</td>
-                  <td>2025-03-20</td>
-                  <td><span class="badge bg-danger">Rejected</span></td>
-                  <td>
-                    <button class="btn btn-download" onclick="downloadPDF(this)">Download PDF</button>
-                  </td>
-                </tr>
+                <?php foreach ($applications as $application): ?>
+                  <tr data-status="<?php echo $application['status']; ?>">
+                    <td><?php echo $application['application_id']; ?></td>
+                    <td><?php echo isset($students[$application['student_id']]) ? $students[$application['student_id']] : 'Unknown Student'; ?></td>
+                    <td><?php echo isset($scholarships[$application['scholarship_id']]) ? $scholarships[$application['scholarship_id']] : 'Unknown Scholarship'; ?></td>
+                    <td><?php echo $application['submission_date']; ?></td>
+                    <td>
+                      <?php if ($application['status'] == 'Pending'): ?>
+                        <span class="badge bg-warning">Pending</span>
+                      <?php elseif ($application['status'] == 'Approved'): ?>
+                        <span class="badge bg-success">Approved</span>
+                      <?php elseif ($application['status'] == 'Rejected'): ?>
+                        <span class="badge bg-danger">Rejected</span>
+                      <?php else: ?>
+                        <span class="badge bg-secondary"><?php echo $application['status']; ?></span>
+                      <?php endif; ?>
+                    </td>
+                    <td>
+                      <?php if ($application['status'] == 'Pending'): ?>
+                        <button class="btn btn-approve" data-bs-toggle="modal" data-bs-target="#approveModal" onclick="setAction(this, 'approve')">Approve</button>
+                        <button class="btn btn-reject" data-bs-toggle="modal" data-bs-target="#rejectModal" onclick="setAction(this, 'reject')">Reject</button>
+                        <button class="btn btn-download">
+                          <a href=<?php echo $application['document_url']; ?> target="_blank" style="color: white; text-decoration: none;">
+                            <i class="bi bi-file-pdf"></i>
+                          >Download PDF</a>
+                        </button>
+                        <button class="btn btn-assign" data-bs-toggle="modal" data-bs-target="#assignModal" onclick="setAssign(this)">Assign</button>
+                      <?php elseif ($application['status'] == 'Approved'): ?>
+                        <button class="btn btn-download" onclick="downloadPDF(this)">Download PDF</button>
+                      <?php elseif ($application['status'] == 'Rejected'): ?>
+                        <button class="btn btn-download" onclick="downloadPDF(this)">Download PDF</button>
+                      <?php else: ?>
+                        <button class="btn btn-approve" data-bs-toggle="modal" data-bs-target="#approveModal" onclick="setAction(this, 'approve')">Approve</button>
+                        <button class="btn btn-reject" data-bs-toggle="modal" data-bs-target="#rejectModal" onclick="setAction(this, 'reject')">Reject</button>
+                        <button class="btn btn-download" onclick="downloadPDF(this)">Download PDF</button>
+                      <?php endif; ?>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
               </tbody>
             </table>
           </div>
@@ -277,6 +337,27 @@
               </thead>
               <tbody id="pendingTable">
                 <!-- Populated dynamically -->
+                <?php foreach ($applications as $application): ?>
+                  <?php if ($application['status'] == 'Pending'): ?>
+                    <tr>
+                      <td><?php echo $application['application_id']; ?></td>
+                      <td><?php echo isset($students[$application['student_id']]) ? $students[$application['student_id']] : 'Unknown Student'; ?></td>
+                      <td><?php echo isset($scholarships[$application['scholarship_id']]) ? $scholarships[$application['scholarship_id']] : 'Unknown Scholarship'; ?></td>
+                      <td><?php echo $application['submission_date']; ?></td>
+                      <td><span class="badge bg-warning">Pending</span></td>
+                      <td>
+                        <button class="btn btn-approve" data-bs-toggle="modal" data-bs-target="#approveModal" onclick="setAction(this, 'approve')">Approve</button>
+                        <button class="btn btn-reject" data-bs-toggle="modal" data-bs-target="#rejectModal" onclick="setAction(this, 'reject')">Reject</button>
+                        <button class="btn btn-download">
+                          <a href=<?php echo $application['document_url']; ?> target="_blank" style="color: white; text-decoration: none;">
+                            <i class="bi bi-file-pdf"></i>
+                          Download PDF</a>
+                        </button>
+                        <button class="btn btn-assign" data-bs-toggle="modal" data-bs-target="#assignModal" onclick="setAssign(this)">Assign</button>
+                      </td>
+                    </tr> 
+                  <?php endif; ?>
+                <?php endforeach; ?>
               </tbody>
             </table>
           </div>
@@ -298,6 +379,20 @@
               </thead>
               <tbody id="approvedTable">
                 <!-- Populated dynamically -->
+                <?php foreach ($applications as $application): ?>
+                  <?php if ($application['status'] == 'Approved'): ?>
+                    <tr>
+                      <td><?php echo $application['application_id']; ?></td>
+                      <td><?php echo isset($students[$application['student_id']]) ? $students[$application['student_id']] : 'Unknown Student'; ?></td>
+                      <td><?php echo isset($scholarships[$application['scholarship_id']]) ? $scholarships[$application['scholarship_id']] : 'Unknown Scholarship'; ?></td>
+                      <td><?php echo $application['submission_date']; ?></td>
+                      <td><span class="badge bg-success">Approved</span></td>
+                      <td>
+                        <button class="btn btn-download" onclick="downloadPDF(this)">Download PDF</button>
+                      </td>
+                    </tr>
+                  <?php endif; ?>
+                <?php endforeach; ?>
               </tbody>
             </table>
           </div>
@@ -319,6 +414,20 @@
               </thead>
               <tbody id="rejectedTable">
                 <!-- Populated dynamically -->
+                <?php foreach ($applications as $application): ?>
+                  <?php if ($application['status'] == 'Rejected'): ?>
+                    <tr>
+                      <td><?php echo $application['application_id']; ?></td>
+                      <td><?php echo isset($students[$application['student_id']]) ? $students[$application['student_id']] : 'Unknown Student'; ?></td>
+                      <td><?php echo isset($scholarships[$application['scholarship_id']]) ? $scholarships[$application['scholarship_id']] : 'Unknown Scholarship'; ?></td>
+                      <td><?php echo $application['submission_date']; ?></td>
+                      <td><span class="badge bg-danger">Rejected</span></td>
+                      <td>
+                        <button class="btn btn-download" onclick="downloadPDF(this)">Download PDF</button>
+                      </td>
+                    </tr>
+                  <?php endif; ?>
+                <?php endforeach; ?>
               </tbody>
             </table>
           </div>
@@ -402,5 +511,57 @@
   <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
   ></script>
+
+  <script>
+let selectedAppId = null;
+let selectedStudent = null;
+
+// When Approve/Reject buttons are clicked
+function setAction(button, action) {
+  // Get row (closest tr)
+  const row = button.closest("tr");
+  const appId = row.cells[0].innerText;   // Application ID is first column
+  const student = row.cells[1].innerText; // Student Name is second column
+
+  selectedAppId = appId;
+  selectedStudent = student;
+
+  if (action === "approve") {
+    document.getElementById("approveAppId").innerText = appId;
+    document.getElementById("approveStudent").innerText = student;
+  } else if (action === "reject") {
+    document.getElementById("rejectAppId").innerText = appId;
+    document.getElementById("rejectStudent").innerText = student;
+  }
+}
+
+// Confirm approve/reject
+function confirmAction(action) {
+  if (!selectedAppId) {
+    alert("No application selected!");
+    return;
+  }
+
+  // Send AJAX request to update status
+  fetch("", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `application_id=${selectedAppId}&action=${action}`
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      alert("Application " + action + "d successfully!");
+      location.reload(); 
+    } else {
+      alert("Error: " + data.message);
+    }
+  })
+  .catch(err => {
+    console.error(err);
+  });
+}
+</script>
+
 </body>
 </html>
