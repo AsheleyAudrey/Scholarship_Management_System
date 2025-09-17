@@ -37,12 +37,46 @@ while ($row = $scholarshipQueryResult->fetch_assoc()) {
     $scholarships[$row['scholarship_id']] = $row['name'];
 }
 
+// Get reviewers from Users table
+$reviewers = [];
+$reviewerQuery = "SELECT user_id, username FROM Users WHERE role = 'Reviewer'";
+$reviewerQueryResult = $conn->query($reviewerQuery);
+
+if ($reviewerQueryResult) {
+    while ($row = $reviewerQueryResult->fetch_assoc()) {
+        $reviewers[$row['user_id']] = $row['username'];
+    }
+}
+
+// log reviewer array
+echo "<script>console.log(" . json_encode($reviewers) . ");</script>";
+
+
 ?>
 
 <?php
 include "../Database/db.php";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+  if (isset($_POST['assign_reviewer'])) {
+    $application_id = intval($_POST['application_id']);
+    $reviewer_id = intval($_POST['reviewer_id']);
+
+    $stmt = $conn->prepare("UPDATE Applications SET assigned_reviewer_id = ? WHERE application_id = ?");
+    $stmt->bind_param("ii", $reviewer_id, $application_id);
+
+    echo "<script>console.log('Assigning reviewer', $reviewer_id, 'to application', $application_id);</script>";
+
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false, 'message' => $stmt->error]);
+    }
+    $stmt->close();
+    exit;
+}
+
     $application_id = intval($_POST['application_id']);
     $action = $_POST['action'];
 
@@ -63,6 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $stmt->close();
 }
+
+
+
 ?>
 
 
@@ -284,7 +321,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <td><?php echo isset($scholarships[$application['scholarship_id']]) ? $scholarships[$application['scholarship_id']] : 'Unknown Scholarship'; ?></td>
                     <td><?php echo $application['submission_date']; ?></td>
                     <td>
-                      <?php if ($application['status'] == 'Pending'): ?>
+                      <?php if ($application['status'] == 'Submitted'): ?>
                         <span class="badge bg-warning">Pending</span>
                       <?php elseif ($application['status'] == 'Approved'): ?>
                         <span class="badge bg-success">Approved</span>
@@ -295,7 +332,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       <?php endif; ?>
                     </td>
                     <td>
-                      <?php if ($application['status'] == 'Pending'): ?>
+                      <?php if ($application['status'] == 'Submitted'): ?>
                         <button class="btn btn-approve" data-bs-toggle="modal" data-bs-target="#approveModal" onclick="setAction(this, 'approve')">Approve</button>
                         <button class="btn btn-reject" data-bs-toggle="modal" data-bs-target="#rejectModal" onclick="setAction(this, 'reject')">Reject</button>
                         <button class="btn btn-download">
@@ -338,7 +375,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <tbody id="pendingTable">
                 <!-- Populated dynamically -->
                 <?php foreach ($applications as $application): ?>
-                  <?php if ($application['status'] == 'Pending'): ?>
+                  <?php if ($application['status'] == 'Submitted'): ?>
                     <tr>
                       <td><?php echo $application['application_id']; ?></td>
                       <td><?php echo isset($students[$application['student_id']]) ? $students[$application['student_id']] : 'Unknown Student'; ?></td>
@@ -493,10 +530,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label for="reviewer" class="form-label">Select Reviewer</label>
             <select class="form-select" id="reviewer" required>
               <option value="" disabled selected>Select a reviewer</option>
-              <option value="reviewer1">Reviewer 1</option>
-              <option value="reviewer2">Reviewer 2</option>
-              <option value="reviewer3">Reviewer 3</option>
+              <?php foreach ($reviewers as $id => $name): ?>
+                <option value="<?php echo $id; ?>"><?php echo htmlspecialchars($name); ?></option>
+              <?php endforeach; ?>
             </select>
+
           </div>
         </div>
         <div class="modal-footer">
@@ -561,6 +599,34 @@ function confirmAction(action) {
     console.error(err);
   });
 }
+
+function setAssign(button) {
+  const row = button.closest("tr");
+  selectedAppId = row.cells[0].innerText;
+  selectedStudent = row.cells[1].innerText;
+
+  document.getElementById("assignAppId").innerText = selectedAppId;
+  document.getElementById("assignStudent").innerText = selectedStudent;
+}
+
+function assignReviewer() {
+  const reviewerId = document.getElementById("reviewer").value;
+  if (!selectedAppId || !reviewerId) {
+    alert("Please select a reviewer!");
+    return;
+  }
+  fetch("", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `application_id=${selectedAppId}&reviewer_id=${reviewerId}&assign_reviewer=1`
+  })
+  .then(data => {
+      alert("Reviewer assigned successfully!");
+      location.reload();
+  })
+  .catch(err => console.error(err));
+}
+
 </script>
 
 </body>

@@ -18,9 +18,9 @@ foreach ($tablesToCheck as $table) {
         die("$table table not found in database: $dbname");
     }
 }
-
+session_start();
 // Assume logged-in reviewer (Richlove Kin, user_id: 2, reviewer_id: 1)
-$user_id = 2; // This should ideally come from $_SESSION['user_id']
+$user_id = $_SESSION['user_id'];
 $reviewerQuery = "SELECT reviewer_id FROM ReviewCommittee WHERE user_id = ?";
 $stmt = $conn->prepare($reviewerQuery);
 if (!$stmt) {
@@ -109,7 +109,7 @@ $stmt = $conn->prepare($query);
 if (!$stmt) {
     die("Prepare failed: " . $conn->error);
 }
-$stmt->bind_param("iiii", $reviewer_id, $reviewer_id, $perPage, $offset);
+$stmt->bind_param("iiii", $user_id, $user_id, $perPage, $offset);
 if (!$stmt->execute()) {
     die("Execute failed: " . $stmt->error);
 }

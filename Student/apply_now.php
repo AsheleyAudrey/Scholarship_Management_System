@@ -120,18 +120,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $conn->begin_transaction();
 
             try {
-                // Insert documents into Document table (just first document URL here)
-                $mainDocumentUrl = $uploadedFiles[0]['url'] ?? null;
-                if (!$mainDocumentUrl) {
-                    throw new Exception("No documents uploaded.");
+                // Extract uploaded file URLs
+                $transcriptUrl = null;
+                $recommendationUrl = null;
+                $financialUrl = null;
+
+                foreach ($uploadedFiles as $file) {
+                    if ($file['type'] === 'Transcript') {
+                        $transcriptUrl = $file['url'];
+                    } elseif ($file['type'] === 'Recommendation Letter') {
+                        $recommendationUrl = $file['url'];
+                    } elseif ($file['type'] === 'Financial Statement') {
+                        $financialUrl = $file['url'];
+                    }
+                }
+
+                if (!$transcriptUrl) {
+                    throw new Exception("Transcript is required.");
                 }
 
                 // Insert application into Applications table
-                $applicationStmt = $conn->prepare("INSERT INTO Applications (student_id, scholarship_id, submission_date, document_url) VALUES (?, ?, NOW(), ?)");
+                $applicationStmt = $conn->prepare("
+                    INSERT INTO Applications 
+                        (student_id, scholarship_id, submission_date, document_url, finantial_statement_url, recommendation_letter_url) 
+                    VALUES (?, ?, NOW(), ?, ?, ?)
+                ");
                 if (!$applicationStmt) {
                     throw new Exception("Prepare failed for Applications insert: " . $conn->error);
                 }
-                $applicationStmt->bind_param("iis", $student_id, $scholarship_id, $mainDocumentUrl);
+
+                $applicationStmt->bind_param("iisss", $student_id, $scholarship_id, $transcriptUrl, $financialUrl, $recommendationUrl);
+
                 if (!$applicationStmt->execute()) {
                     throw new Exception("Failed to insert application: " . $applicationStmt->error);
                 }
@@ -146,6 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errorMessage = "Error submitting application: " . $e->getMessage();
             }
         }
+
     }
 }
 ?>
@@ -445,6 +465,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       document.querySelector('.progress-step:nth-child(' + prevStep + ')').classList.add('active');
     }
   </script>
+
+  <!-- Loader Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-3 mb-0">Uploading files... Please wait.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Show loader when submitting
+  document.getElementById('applicationForm').addEventListener('submit', function() {
+    var loaderModal = new bootstrap.Modal(document.getElementById('loadingModal'), {
+      backdrop: 'static',
+      keyboard: false
+    });
+    loaderModal.show();
+  });
+</script>
+
 </body>
 </html>
 
