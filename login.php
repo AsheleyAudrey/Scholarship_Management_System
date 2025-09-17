@@ -1,47 +1,46 @@
 <?php
 include "./Database/db.php";
+session_start();
 
 // Run logic ONLY when the form is submitted
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
-    // Prepare and execute secure SQL query
-    $sql = "SELECT * FROM users WHERE username = ? AND password = ?";
+    // ✅ Step 1: fetch user by username only
+    $sql = "SELECT * FROM Users WHERE username = ?";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ss", $username, $password);
+    $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
 
-    // Check if login is successful
     if ($result && $result->num_rows === 1) {
         $user = $result->fetch_assoc();
-        $role = $user['role'];
 
-        session_start();
-        $_SESSION['user_id'] = $user['user_id'];
-        $_SESSION['username'] = $user['username'];
-        $_SESSION['role'] = $user['role'];
+        // ✅ Step 2: verify hashed password
+        if (password_verify($password, $user['password'])) {
+            $_SESSION['user_id'] = $user['user_id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['role'] = $user['role'];
 
-        echo "<script>alert('Login successful');</script>";
-
-        // Redirect based on role
-        if ($role === "Admin") {
-            echo "<script>window.location.href = 'admin/dashboard.php';</script>";
-        }
-        else if ($role === "Reviewer") {
-            echo "<script>window.location.href = 'reviewer/dashboard.php';</script>";
-        }
-        else {
-            echo "<script>window.location.href = 'student/dashboard.php';</script>";
+            // ✅ Step 3: redirect based on role
+            if ($user['role'] === "Admin") {
+                echo "<script>window.location.href = 'admin/dashboard.php';</script>";
+            } elseif ($user['role'] === "Reviewer") {
+                echo "<script>window.location.href = 'reviewer/dashboard.php';</script>";
+            } else {
+                echo "<script>window.location.href = 'student/dashboard.php';</script>";
+            }
+        } else {
+            echo "<script>alert('Invalid username or password');</script>";
         }
     } else {
-        echo "<script>alert('Invalid credentials');</script>";
+        echo "<script>alert('Invalid username or password');</script>";
     }
 }
 ?>
 
-<!-- HTML starts AFTER PHP to prevent early rendering -->
+<!-- HTML starts AFTER PHP -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,7 +48,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login Page</title>
     <style>
-        /* [Your CSS remains unchanged] */
         body {
             font-family: Arial, sans-serif;
             display: flex;

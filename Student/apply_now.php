@@ -17,9 +17,9 @@ foreach ($tablesToCheck as $table) {
         die("$table table not found in database: $dbname");
     }
 }
-
+session_start();
 // Assume logged-in student (Amber David, user_id: 4, student_id: 1)
-$user_id = 4; // This should ideally come from $_SESSION['user_id']
+$user_id = $_SESSION['user_id'];
 $studentQuery = "SELECT student_id FROM Students WHERE user_id = ?";
 $stmt = $conn->prepare($studentQuery);
 if (!$stmt) {

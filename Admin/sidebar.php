@@ -99,17 +99,11 @@
         <a href="student.php" class="nav-link">
           <i class="bi bi-people"></i> Student Management
         </a>
-        <a href="document.php" class="nav-link">
-          <i class="bi bi-file-earmark-text"></i> Document
-        </a>
         <a href="fund.php" class="nav-link">
           <i class="bi bi-currency-dollar"></i> Fund Allocation
         </a>
         <a href="reports.php" class="nav-link">
           <i class="bi bi-bar-chart"></i> Reports & Analytics
-        </a>
-        <a href="detection.php" class="nav-link">
-          <i class="bi bi-shield-check"></i> Fraud Detection Logs
         </a>
         <a href="notification.php" class="nav-link">
           <i class="bi bi-bell me-2"></i>System Notifications

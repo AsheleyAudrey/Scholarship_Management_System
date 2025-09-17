@@ -3,7 +3,7 @@ include "../Database/db.php";
 session_start();
 
 // Simulated logged-in user (replace with $_SESSION['user_id'])
-$user_id = 4;
+$user_id = $_SESSION['user_id'];
 
 // Handle actions: Mark as Read / Delete
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

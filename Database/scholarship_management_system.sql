@@ -48,6 +48,8 @@ CREATE TABLE Applications (
     scholarship_id INT NOT NULL,
     submission_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     document_url VARCHAR(255) DEFAULT NULL,
+    finantial_statement_url VARCHAR(255) DEFAULT NULL,
+    recommendation_letter_url VARCHAR(255) DEFAULT NULL,
     status ENUM('Submitted', 'Pending', 'Under Review', 'Approved', 'Accepted', 'Rejected', 'Needs More Info') DEFAULT 'Submitted',
     FOREIGN KEY (student_id) REFERENCES Students(student_id) ON DELETE CASCADE,
     FOREIGN KEY (scholarship_id) REFERENCES Scholarships(scholarship_id) ON DELETE CASCADE

@@ -2,10 +2,15 @@
 include "../Database/db.php";
 session_start();
 
-// Simulated logged-in user (replace with $_SESSION['user_id'])
-$user_id = 4;
+// Ensure user is logged in and is an Admin
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== "Admin") {
+    header("Location: ../login.php");
+    exit();
+}
 
-// (Optional) Fetch logged-in admin details
+$user_id = $_SESSION['user_id'];
+
+// Fetch logged-in admin details
 $stmt = $conn->prepare("SELECT * FROM Users WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
@@ -24,81 +29,22 @@ $user = $stmt->get_result()->fetch_assoc();
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
 
   <style>
-    .main-content {
-      background-color:#f8f9fa;
-      min-height:100vh;
-      padding:30px;
-    }
-    .page-header {
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      margin-bottom:25px;
-    }
-    .page-header h1 {
-      font-size:24px;
-      font-weight:600;
-      color:#152259;
-    }
-
-    .accordion-item {
-      border:none;
-      margin-bottom:12px;
-      box-shadow:0 2px 5px rgba(0,0,0,0.1);
-      border-radius:8px;
-      overflow:hidden;
-    }
-    .accordion-button {
-      background:#fff;
-      color:#152259;
-      font-weight:600;
-      padding:15px;
-    }
-    .accordion-button:not(.collapsed) {
-      background:#509CDB;
-      color:#fff;
-    }
-    .accordion-body {
-      background:#fff;
-      padding:20px;
-    }
-
+    .main-content { background-color:#f8f9fa; min-height:100vh; padding:30px; }
+    .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; }
+    .page-header h1 { font-size:24px; font-weight:600; color:#152259; }
+    .accordion-item { border:none; margin-bottom:12px; box-shadow:0 2px 5px rgba(0,0,0,0.1); border-radius:8px; overflow:hidden; }
+    .accordion-button { background:#fff; color:#152259; font-weight:600; padding:15px; }
+    .accordion-button:not(.collapsed) { background:#509CDB; color:#fff; }
+    .accordion-body { background:#fff; padding:20px; }
     .form-label { font-weight:500; color:#333; }
-    .form-control, .form-select {
-      border-radius:6px;
-      font-size:15px;
-    }
-    .btn-save {
-      background:#509CDB;
-      border:none;
-      padding:8px 16px;
-      color:#fff;
-      border-radius:6px;
-      font-size:14px;
-    }
+    .form-control, .form-select { border-radius:6px; font-size:15px; }
+    .btn-save { background:#509CDB; border:none; padding:8px 16px; color:#fff; border-radius:6px; font-size:14px; }
     .btn-save:hover { background:#408CCB; }
-    .btn-add-admin {
-      background:#28a745;
-      border:none;
-      padding:8px 15px;
-      font-size:14px;
-      color:#fff;
-      border-radius:6px;
-    }
+    .btn-add-admin { background:#28a745; border:none; padding:8px 15px; font-size:14px; color:#fff; border-radius:6px; }
     .btn-add-admin:hover { background:#218838; }
-    .btn-remove {
-      background:#dc3545;
-      border:none;
-      font-size:14px;
-      padding:5px 10px;
-      color:#fff;
-      border-radius:6px;
-    }
+    .btn-remove { background:#dc3545; border:none; font-size:14px; padding:5px 10px; color:#fff; border-radius:6px; }
     .btn-remove:hover { background:#c82333; }
-    .admin-users-table th {
-      background:#152259;
-      color:#fff;
-    }
+    .admin-users-table th { background:#152259; color:#fff; }
   </style>
 </head>
 <body>
@@ -110,6 +56,7 @@ $user = $stmt->get_result()->fetch_assoc();
     </div>
 
     <div class="accordion" id="settingsAccordion">
+
       <!-- Change Admin Password -->
       <div class="accordion-item">
         <h2 class="accordion-header" id="headingPassword">
@@ -120,6 +67,7 @@ $user = $stmt->get_result()->fetch_assoc();
         <div id="collapsePassword" class="accordion-collapse collapse show" data-bs-parent="#settingsAccordion">
           <div class="accordion-body">
             <form method="POST" action="update_password.php">
+              <input type="hidden" name="user_id" value="<?php echo $user_id; ?>">
               <div class="mb-3">
                 <label class="form-label">Current Password</label>
                 <input type="password" name="currentPassword" class="form-control" required>
@@ -164,14 +112,29 @@ $user = $stmt->get_result()->fetch_assoc();
               </div>
               <button type="submit" class="btn btn-add-admin">Add Admin</button>
             </form>
+
+            <!-- Dynamic Admin Users List -->
             <div class="admin-users-table">
               <table class="table table-hover">
                 <thead>
                   <tr><th>Name</th><th>Email</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
-                  <tr><td>Admin One</td><td>admin1@example.com</td><td><button class="btn btn-remove">Remove</button></td></tr>
-                  <tr><td>Admin Two</td><td>admin2@example.com</td><td><button class="btn btn-remove">Remove</button></td></tr>
+                  <?php
+                  $admins = $conn->query("SELECT user_id, username, email FROM Users WHERE role='Admin'");
+                  while ($row = $admins->fetch_assoc()) {
+                      echo "<tr>
+                              <td>{$row['username']}</td>
+                              <td>{$row['email']}</td>
+                              <td>
+                                <form method='POST' action='remove_admin.php' style='display:inline;'>
+                                  <input type='hidden' name='user_id' value='{$row['user_id']}'>
+                                  <button class='btn btn-remove' type='submit'>Remove</button>
+                                </form>
+                              </td>
+                            </tr>";
+                  }
+                  ?>
                 </tbody>
               </table>
             </div>

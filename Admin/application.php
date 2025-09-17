@@ -25,7 +25,7 @@ if (!$studentQueryResult) {
     die("Query failed: " . $conn->error);
 }
 while ($row = $studentQueryResult->fetch_assoc()) {
-    $students[$row['student_id']] = $row['name'];
+    $students[$row['student_id']] = $row['first_name'] . ' ' . $row['last_name'];
 }
 $scholarships = [];
 $scholarshipQuery = "SELECT * FROM Scholarships";
