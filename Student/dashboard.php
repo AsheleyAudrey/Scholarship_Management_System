@@ -17,8 +17,13 @@ if (!$scholarshipsTableExists) {
     die("Scholarships table not found in database: $dbname");
 }
 
-// Assume logged-in student (Amber David, user_id: 4, student_id: 1)
-$user_id = 4;
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../login.php");
+    exit();
+}
+
+$user_id = $_SESSION['user_id'];
 $studentQuery = "SELECT student_id, first_name, last_name FROM Students WHERE user_id = ?";
 $stmt = $conn->prepare($studentQuery);
 if (!$stmt) {

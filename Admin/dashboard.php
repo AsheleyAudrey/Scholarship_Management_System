@@ -14,9 +14,12 @@ if (!$conn->select_db($dbname)) {
 // Check if Documents table exists
 $documentsTableExists = $conn->query("SHOW TABLES LIKE 'Documents'")->num_rows > 0;
 
-// Assume logged-in admin (user_id: 1, Ju Win)
-// In a real system, use $_SESSION['user_id']
-$admin_user_id = 1;
+session_start();
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Admin') {
+    header("Location: ../login.php");
+    exit();
+}
+$admin_user_id = $_SESSION['user_id'];
 
 // Fetch Summary Boxes data
 $scholarshipsAwardedQuery = "SELECT COUNT(*) AS awarded FROM Students WHERE status = 'Scholarship Awarded'";

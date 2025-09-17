@@ -1,258 +1,253 @@
+<?php
+// review_history.php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+include "../Database/db.php"; // adjust path if needed
+session_start();
+
+// Replace with actual session user id in production
+$session_user_id = $_SESSION['user_id'] ?? 4;
+
+// helper for safe output
+function h($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+
+$errors = [];
+$reviews = [];
+$reviewer_id = null;
+
+// 1) Map Users.user_id -> ReviewCommittee.reviewer_id
+if (!$conn) {
+    $errors[] = "Database connection not available.";
+} else {
+    $stmt = $conn->prepare("SELECT reviewer_id FROM ReviewCommittee WHERE user_id = ? LIMIT 1");
+    if (!$stmt) {
+        $errors[] = "Prepare failed (finding reviewer): " . $conn->error;
+    } else {
+        $stmt->bind_param("i", $session_user_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($res && $res->num_rows > 0) {
+            $row = $res->fetch_assoc();
+            $reviewer_id = (int)$row['reviewer_id'];
+        } else {
+            $errors[] = "No reviewer profile found for this user. (user_id={$session_user_id})";
+        }
+        $stmt->close();
+    }
+}
+
+// 2) If reviewer_id found, fetch reviews
+if ($reviewer_id) {
+    $sql = "
+      SELECT r.review_id,
+             r.application_id,
+             r.review_date,
+             r.score,
+             r.comments,
+             r.decision,
+             a.student_id,
+             s.first_name,
+             s.last_name,
+             sc.scholarship_id,
+             sc.name AS scholarship_name
+      FROM Reviews r
+      JOIN Applications a ON r.application_id = a.application_id
+      JOIN Students s ON a.student_id = s.student_id
+      JOIN Scholarships sc ON a.scholarship_id = sc.scholarship_id
+      WHERE r.reviewer_id = ?
+      ORDER BY r.review_date DESC
+    ";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        $errors[] = "Prepare failed (fetching reviews): " . $conn->error;
+    } else {
+        $stmt->bind_param("i", $reviewer_id);
+        if (!$stmt->execute()) {
+            $errors[] = "Execute failed (fetching reviews): " . $stmt->error;
+        } else {
+            $res = $stmt->get_result();
+            if ($res) {
+                while ($r = $res->fetch_assoc()) {
+                    // normalize fields
+                    $r['student_name'] = trim($r['first_name'] . ' ' . $r['last_name']);
+                    $r['score'] = $r['score'] !== null ? (float)$r['score'] : null;
+                    $reviews[] = $r;
+                }
+            }
+        }
+        $stmt->close();
+    }
+}
+
+// Build distinct scholarship list for the filter UI
+$scholarshipOptions = [];
+foreach ($reviews as $r) {
+    if (!in_array($r['scholarship_name'], $scholarshipOptions, true)) {
+        $scholarshipOptions[] = $r['scholarship_name'];
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Review History</title>
-  
-  <!-- Bootstrap CSS -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
-  <!-- Bootstrap Icons -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
-    rel="stylesheet"
-  />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
   <style>
-
-    /* Adjust main content to account for fixed sidebar */
-    .main-content {
-      background-color: #f8f9fa; /* Light gray background for main content */
-      min-height: 100vh;
-    }
-
-    /* Header styling */
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    .page-header h1 {
-      font-size: 24px;
-      font-weight: 600;
-      color: #333;
-    }
-
-    /* Filters */
-    .filters {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
-    .filters .form-select,
-    .filters .form-control {
-      border-radius: 5px;
-      border: 1px solid #ced4da;
-      box-shadow: none;
-      max-width: 200px;
-    }
-
-    .filters .form-select:focus,
-    .filters .form-control:focus {
-      border-color: #509CDB; /* Match active item color */
-      box-shadow: 0 0 5px rgba(80, 156, 219, 0.3);
-    }
-
-    /* Review History Table */
-    .review-table {
-      background-color: #ffffff;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-    }
-
-    .review-table .table {
-      margin-bottom: 0;
-    }
-
-    .review-table .table th {
-      background-color: #152259; /* Match sidebar color */
-      color: #ffffff;
-    }
-
-    .review-table .table td {
-      vertical-align: middle;
-    }
-
-    .review-table .table .btn-expand {
-      background-color: #509CDB; /* Match active item color */
-      border: none;
-      font-size: 14px;
-      padding: 5px 10px;
-    }
-
-    .review-table .table .btn-expand:hover {
-      background-color: #408CCB;
-    }
-
-    /* Expandable Review Summary */
-    .review-summary {
-      background-color: #f8f9fa;
-      padding: 15px;
-      border-radius: 5px;
-      margin-top: 10px;
-      display: none;
-    }
-
-    .review-summary p {
-      margin: 5px 0;
-      font-size: 14px;
-      color: #333;
-    }
-
-    .review-summary .score-breakdown {
-      margin-top: 10px;
-      padding: 10px;
-      background-color: #ffffff;
-      border-radius: 5px;
-      border: 1px solid #dee2e6;
-    }
-
-    .review-summary .score-breakdown p {
-      margin: 0;
-      padding: 5px 0;
-    }
+    .main-content { background:#f8f9fa; min-height:100vh; padding:22px; }
+    .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .page-header h1 { font-size:24px; font-weight:600; color:#152259; }
+    .filters { display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+    .filters .form-select, .filters .form-control { max-width:260px; }
+    .review-table { background:#fff; border-radius:10px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+    .review-table th { background:#152259; color:#fff; }
+    .btn-expand { background:#509CDB; color:#fff; border:none; padding:6px 10px; border-radius:6px; }
+    .btn-expand:hover { background:#408CCB; }
+    .review-summary { background:#f8f9fa; padding:12px; border-radius:8px; margin-top:8px; display:none; }
+    .score-breakdown { margin-top:10px; padding:10px; background:#fff; border-radius:6px; border:1px solid #e6e6e6; }
+    .muted-centre { text-align:center; color:#777; padding:20px 0; }
+    .error-box { margin-bottom:12px; }
   </style>
 </head>
 <body>
-    <!-- Sidebar -->
-     <?php  include 'sidebar.php'; ?>
-    <!-- Main content -->
-    <div class="main-content">
-      <!-- Header -->
-      <div class="page-header">
-        <h1>Review History</h1>
-      </div>
+<?php include 'sidebar.php'; ?>
 
-      <!-- Filters -->
-      <div class="filters">
-        <select class="form-select" id="scholarshipFilter" onchange="applyFilters()">
-          <option value="">All Scholarships</option>
-          <option value="Merit-Based Scholarship">Merit-Based Scholarship</option>
-          <option value="Need-Based Scholarship">Need-Based Scholarship</option>
-          <option value="STEM Scholarship">STEM Scholarship</option>
-        </select>
-        <input type="date" class="form-control" id="reviewDateFilter" onchange="applyFilters()" placeholder="Filter by Review Date">
-      </div>
-
-      <!-- Review History Table -->
-      <div class="review-table">
-        <table class="table table-hover">
-          <thead>
-            <tr>
-              <th>Application ID</th>
-              <th>Student Name</th>
-              <th>Scholarship Name</th>
-              <th>Review Date</th>
-              <th>Final Score</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="reviewTable">
-            <tr data-scholarship="Merit-Based Scholarship" data-review-date="2025-04-05">
-              <td>A001</td>
-              <td>John Doe</td>
-              <td>Merit-Based Scholarship</td>
-              <td>2025-04-05</td>
-              <td>85%</td>
-              <td>
-                <button class="btn btn-expand" onclick="toggleReviewSummary(this)">View Summary</button>
-              </td>
-            </tr>
-            <tr style="display: none;">
-              <td colspan="6">
-                <div class="review-summary">
-                  <p><strong>Feedback/Comments:</strong> Strong academic record and well-written essay. Good involvement in extracurricular activities.</p>
-                  <div class="score-breakdown">
-                    <p>Academic Performance: 90%</p>
-                    <p>Essay Quality: 80%</p>
-                    <p>Extracurricular Activities: 85%</p>
-                  </div>
-                </div>
-              </td>
-            </tr>
-            <tr data-scholarship="Need-Based Scholarship" data-review-date="2025-04-06">
-              <td>A002</td>
-              <td>Jane Smith</td>
-              <td>Need-Based Scholarship</td>
-              <td>2025-04-06</td>
-              <td>72%</td>
-              <td>
-                <button class="btn btn-expand" onclick="toggleReviewSummary(this)">View Summary</button>
-              </td>
-            </tr>
-            <tr style="display: none;">
-              <td colspan="6">
-                <div class="review-summary">
-                  <p><strong>Feedback/Comments:</strong> Academic performance is average. Essay lacks depth. Good extracurricular involvement.</p>
-                  <div class="score-breakdown">
-                    <p>Academic Performance: 70%</p>
-                    <p>Essay Quality: 65%</p>
-                    <p>Extracurricular Activities: 80%</p>
-                  </div>
-                </div>
-              </td>
-            </tr>
-            <tr data-scholarship="STEM Scholarship" data-review-date="2025-04-07">
-              <td>A003</td>
-              <td>Emily Johnson</td>
-              <td>STEM Scholarship</td>
-              <td>2025-04-07</td>
-              <td>90%</td>
-              <td>
-                <button class="btn btn-expand" onclick="toggleReviewSummary(this)">View Summary</button>
-              </td>
-            </tr>
-            <tr style="display: none;">
-              <td colspan="6">
-                <div class="review-summary">
-                  <p><strong>Feedback/Comments:</strong> Excellent academic performance and essay. Strong candidate for STEM scholarship.</p>
-                  <div class="score-breakdown">
-                    <p>Academic Performance: 95%</p>
-                    <p>Essay Quality: 90%</p>
-                    <p>Extracurricular Activities: 85%</p>
-                  </div>
-                </div>
-              </td>
-            </tr>
-            <tr data-scholarship="Merit-Based Scholarship" data-review-date="2025-04-08">
-              <td>A004</td>
-              <td>Michael Brown</td>
-              <td>Merit-Based Scholarship</td>
-              <td>2025-04-08</td>
-              <td>78%</td>
-              <td>
-                <button class="btn btn-expand" onclick="toggleReviewSummary(this)">View Summary</button>
-              </td>
-            </tr>
-            <tr style="display: none;">
-              <td colspan="6">
-                <div class="review-summary">
-                  <p><strong>Feedback/Comments:</strong> Solid application overall. Awaiting admin approval for final decision.</p>
-                  <div class="score-breakdown">
-                    <p>Academic Performance: 80%</p>
-                    <p>Essay Quality: 75%</p>
-                    <p>Extracurricular Activities: 80%</p>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+<div class="main-content">
+  <div class="page-header">
+    <h1>Review History</h1>
+    <div class="text-muted">Reviewer ID: <?= $reviewer_id ? h($reviewer_id) : 'N/A' ?></div>
   </div>
 
-  <!-- Bootstrap JS -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-  ></script>
+  <?php if (!empty($errors)): ?>
+    <div class="alert alert-danger error-box">
+      <strong>Errors:</strong>
+      <ul class="mb-0">
+        <?php foreach ($errors as $e): ?>
+          <li><?= h($e) ?></li>
+        <?php endforeach; ?>
+      </ul>
+    </div>
+  <?php endif; ?>
+
+  <div class="filters mb-2">
+    <select id="scholarshipFilter" class="form-select">
+      <option value="">All Scholarships</option>
+      <?php foreach ($scholarshipOptions as $opt): ?>
+        <option value="<?= h(strtolower($opt)) ?>"><?= h($opt) ?></option>
+      <?php endforeach; ?>
+    </select>
+
+    <input id="reviewDateFilter" type="date" class="form-control" placeholder="Filter by review date"/>
+
+    <input id="searchInput" type="text" class="form-control" placeholder="Search by application ID or student name" style="max-width:360px"/>
+  </div>
+
+  <div class="review-table">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Application ID</th>
+          <th>Student Name</th>
+          <th>Scholarship Name</th>
+          <th>Review Date</th>
+          <th>Score</th>
+          <th>Decision</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="reviewTable">
+        <?php if (empty($reviews)): ?>
+          <tr><td colspan="7" class="muted-centre">No review history found.</td></tr>
+        <?php else: ?>
+          <?php foreach ($reviews as $r): 
+            $appId = h($r['application_id']);
+            $studentName = h($r['student_name']);
+            $schName = h($r['scholarship_name']);
+            $reviewDate = h($r['review_date']);
+            $score = $r['score'] !== null ? h(number_format($r['score'],2)) : '-';
+            $decision = h($r['decision'] ?? '-');
+            ?>
+            <tr data-scholarship="<?= h(strtolower($r['scholarship_name'])) ?>" data-review-date="<?= h($r['review_date']) ?>" data-search="<?= h(strtolower($appId . ' ' . $studentName)) ?>">
+              <td><?= $appId ?></td>
+              <td><?= $studentName ?></td>
+              <td><?= $schName ?></td>
+              <td><?= $reviewDate ?></td>
+              <td><?= $score ?>%</td>
+              <td><?= $decision ?></td>
+              <td>
+                <button class="btn btn-expand" onclick="toggleSummary(this)">View</button>
+              </td>
+            </tr>
+            <tr class="summary-row" style="display:none;">
+              <td colspan="7">
+                <div class="review-summary">
+                  <p><strong>Comments:</strong> <?= h($r['comments'] ?? 'No comments') ?></p>
+                  <div class="score-breakdown">
+                    <p><strong>Score (raw):</strong> <?= $score !== '-' ? $score . '%' : '-' ?></p>
+                    <!-- If you want to show more breakdown fields, add them to the DB and display here -->
+                  </div>
+                </div>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // toggle summary row for a given "View" button
+  function toggleSummary(btn){
+    const tr = btn.closest('tr');
+    const next = tr.nextElementSibling;
+    if (!next || !next.classList.contains('summary-row')) return;
+    if (next.style.display === 'none' || next.style.display === '') {
+      next.style.display = 'table-row';
+    } else {
+      next.style.display = 'none';
+    }
+  }
+
+  // filter logic
+  document.getElementById('scholarshipFilter').addEventListener('change', applyFilters);
+  document.getElementById('reviewDateFilter').addEventListener('change', applyFilters);
+  document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+  function applyFilters(){
+    const scholarship = document.getElementById('scholarshipFilter').value;
+    const reviewDate = document.getElementById('reviewDateFilter').value;
+    const search = document.getElementById('searchInput').value.trim().toLowerCase();
+
+    const rows = document.querySelectorAll('#reviewTable > tr');
+    for (let i = 0; i < rows.length; i += 2) {
+      const main = rows[i];
+      const summary = rows[i+1];
+      if (!main) continue;
+
+      const rowScholarship = main.getAttribute('data-scholarship') || '';
+      const rowDate = main.getAttribute('data-review-date') || '';
+      const rowSearch = main.getAttribute('data-search') || '';
+
+      let show = true;
+      if (scholarship && scholarship !== rowScholarship) show = false;
+      if (reviewDate && reviewDate !== rowDate) show = false;
+      if (search && rowSearch.indexOf(search) === -1) show = false;
+
+      main.style.display = show ? '' : 'none';
+      if (summary) summary.style.display = 'none';
+    }
+  }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
+<?php
+// close connection
+if ($conn) $conn->close();
+?>

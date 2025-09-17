@@ -18,10 +18,12 @@ foreach ($tablesToCheck as $table) {
         die("$table table not found in database: $dbname");
     }
 }
-
-// Assume logged-in reviewer (Richlove Kin, user_id: 2)
-$user_id = 2; // This should ideally come from the session (e.g., $_SESSION['user_id'])
-
+session_start();
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Reviewer') {
+    header("Location: ../login.php");
+    exit();
+}
+$user_id = $_SESSION['user_id'];
 // Fetch reviewer details
 $reviewerQuery = "SELECT reviewer_id, name FROM ReviewCommittee WHERE user_id = ?";
 $stmt = $conn->prepare($reviewerQuery);

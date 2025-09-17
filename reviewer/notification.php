@@ -1,174 +1,117 @@
+<?php
+include "../Database/db.php";
+session_start();
+
+// Simulated reviewer login (replace with $_SESSION['user_id'])
+$user_id = 4;
+
+// Handle actions: Mark as Read / Delete / Mark All
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['mark_read'])) {
+        $notif_id = intval($_POST['mark_read']);
+        $stmt = $conn->prepare("UPDATE Notifications SET status = 'Read' WHERE notification_id = ? AND user_id = ?");
+        $stmt->bind_param("ii", $notif_id, $user_id);
+        $stmt->execute();
+    }
+
+    if (isset($_POST['delete'])) {
+        $notif_id = intval($_POST['delete']);
+        $stmt = $conn->prepare("DELETE FROM Notifications WHERE notification_id = ? AND user_id = ?");
+        $stmt->bind_param("ii", $notif_id, $user_id);
+        $stmt->execute();
+    }
+
+    if (isset($_POST['mark_all'])) {
+        $stmt = $conn->prepare("UPDATE Notifications SET status = 'Read' WHERE user_id = ?");
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+    }
+}
+
+// Fetch reviewer notifications
+$stmt = $conn->prepare("SELECT * FROM Notifications WHERE user_id = ? ORDER BY date_created DESC");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$notifications = $result->fetch_all(MYSQLI_ASSOC);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Notifications</title>
-  
+  <title>Reviewer Notifications</title>
+
   <!-- Bootstrap CSS -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
-  <!-- Bootstrap Icons -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
-    rel="stylesheet"
-  />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
+
   <style>
+    .main-content { background:#f8f9fa; min-height:100vh; padding:20px; }
+    .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; }
+    .page-header h1 { font-size:26px; font-weight:600; color:#333; }
 
-    /* Adjust main content to account for fixed sidebar */
-    .main-content {
-      background-color: #f8f9fa; /* Light gray background for main content */
-      min-height: 100vh;
-    }
+    .btn-mark-all { background:#509CDB; color:#fff; border:none; padding:8px 15px; border-radius:6px; }
+    .btn-mark-all:hover { background:#408CCB; }
 
-    /* Header styling */
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
+    .notifications-section { background:#fff; border-radius:10px; padding:25px; box-shadow:0 2px 8px rgba(0,0,0,.1); max-width:900px; margin:0 auto; }
+    .notification-item { display:flex; justify-content:space-between; align-items:center; padding:18px; border-bottom:1px solid #eee; transition:background-color .2s; }
+    .notification-item:last-child { border-bottom:none; }
+    .notification-item.unread { background:#e9f5ff; font-weight:500; }
 
-    .page-header h1 {
-      font-size: 24px;
-      font-weight: 600;
-      color: #333;
-    }
+    .notification-content { display:flex; align-items:center; flex:1; gap:15px; }
+    .notification-content i { font-size:22px; color:#509CDB; }
+    .notification-text { flex:1; }
+    .notification-text p { margin:0; font-size:15px; color:#333; }
+    .notification-text .date { font-size:13px; color:#666; margin-top:3px; }
 
-    .page-header .btn-mark-all {
-      background-color: #509CDB; /* Match active item color */
-      border: none;
-      font-size: 14px;
-      padding: 5px 15px;
-    }
-
-    .page-header .btn-mark-all:hover {
-      background-color: #408CCB;
-    }
-
-    /* Notifications Section */
-    .notifications-section {
-      background-color: #ffffff;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-    }
-
-    .notifications-section .list-group-item {
-      border: none;
-      padding: 15px 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #dee2e6;
-      transition: background-color 0.2s;
-    }
-
-    .notifications-section .list-group-item:last-child {
-      border-bottom: none;
-    }
-
-    .notifications-section .list-group-item.unread {
-      background-color: #e9f5ff; /* Light blue for unread notifications */
-    }
-
-    .notifications-section .list-group-item .notification-content {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-    }
-
-    .notifications-section .list-group-item i {
-      font-size: 20px;
-      color: #509CDB; /* Match active item color */
-    }
-
-    .notifications-section .list-group-item .notification-text {
-      font-size: 16px;
-      color: #333;
-    }
-
-    .notifications-section .list-group-item .notification-timestamp {
-      font-size: 14px;
-      color: #666;
-    }
-
-    .notifications-section .list-group-item .btn-mark-read {
-      background-color: #28a745; /* Green for mark as read */
-      border: none;
-      font-size: 14px;
-      padding: 5px 10px;
-    }
-
-    .notifications-section .list-group-item .btn-mark-read:hover {
-      background-color: #218838;
-    }
+    .notification-actions { display:flex; gap:10px; }
+    .btn-read { background:#28a745; color:#fff; border:none; padding:5px 12px; border-radius:5px; }
+    .btn-read:hover { background:#218838; }
+    .btn-delete { background:#dc3545; color:#fff; border:none; padding:5px 12px; border-radius:5px; }
+    .btn-delete:hover { background:#c82333; }
   </style>
 </head>
 <body>
-  <!-- Sidebar -->
-   <?php include 'sidebar.php'; ?>
-    <!-- Main content -->
-    <div class="main-content">
-      <!-- Header -->
-      <div class="page-header">
-        <h1>Notifications</h1>
-        <button class="btn btn-mark-all" onclick="markAllAsRead()">Mark All as Read</button>
-      </div>
+  <?php include 'sidebar.php'; ?>
 
-      <!-- Notifications Section -->
-      <div class="notifications-section">
-        <ul class="list-group" id="notificationList">
-          <li class="list-group-item unread" data-id="1">
+  <div class="main-content">
+    <div class="page-header">
+      <h1>Reviewer Notifications</h1>
+      <form method="POST" class="d-inline">
+        <button type="submit" name="mark_all" class="btn btn-mark-all">Mark All as Read</button>
+      </form>
+    </div>
+
+    <div class="notifications-section">
+      <?php if (empty($notifications)): ?>
+        <p class="text-muted">No notifications available.</p>
+      <?php else: ?>
+        <?php foreach ($notifications as $notif): ?>
+          <div class="notification-item <?= $notif['status'] === 'Unread' ? 'unread' : '' ?>">
             <div class="notification-content">
-              <i class="bi bi-file-earmark-plus"></i>
-              <span class="notification-text">New application assigned: A005</span>
+              <i class="bi bi-bell"></i>
+              <div class="notification-text">
+                <p><?= htmlspecialchars($notif['message']) ?></p>
+                <div class="date"><?= htmlspecialchars($notif['date_created']) ?></div>
+              </div>
             </div>
-            <div class="d-flex align-items-center gap-2">
-              <span class="notification-timestamp">2025-04-10 09:00</span>
-              <button class="btn btn-mark-read" onclick="markAsRead(this)">Mark as Read</button>
+            <div class="notification-actions">
+              <form method="POST" class="d-inline">
+                <?php if ($notif['status'] === 'Unread'): ?>
+                  <button type="submit" name="mark_read" value="<?= $notif['notification_id'] ?>" class="btn btn-read">Mark as Read</button>
+                <?php endif; ?>
+                <button type="submit" name="delete" value="<?= $notif['notification_id'] ?>" class="btn btn-delete">Delete</button>
+              </form>
             </div>
-          </li>
-          <li class="list-group-item unread" data-id="2">
-            <div class="notification-content">
-              <i class="bi bi-exclamation-triangle"></i>
-              <span class="notification-text">Deadline approaching for A004 review: Due 2025-04-12</span>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-              <span class="notification-timestamp">2025-04-09 15:30</span>
-              <button class="btn btn-mark-read" onclick="markAsRead(this)">Mark as Read</button>
-            </div>
-          </li>
-          <li class="list-group-item unread" data-id="3">
-            <div class="notification-content">
-              <i class="bi bi-info-circle"></i>
-              <span class="notification-text">System Update: Review rubric updated by admin</span>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-              <span class="notification-timestamp">2025-04-09 10:00</span>
-              <button class="btn btn-mark-read" onclick="markAsRead(this)">Mark as Read</button>
-            </div>
-          </li>
-          <li class="list-group-item" data-id="4">
-            <div class="notification-content">
-              <i class="bi bi-file-earmark-plus"></i>
-              <span class="notification-text">New application assigned: A003</span>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-              <span class="notification-timestamp">2025-04-08 14:00</span>
-            </div>
-          </li>
-        </ul>
-      </div>
+          </div>
+        <?php endforeach; ?>
+      <?php endif; ?>
     </div>
   </div>
 
-  <!-- Bootstrap JS -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-  ></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
+<?php $conn->close(); ?>

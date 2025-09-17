@@ -134,6 +134,14 @@ CREATE TABLE transactions (
     ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE ReviewerSettings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    new_assignment TINYINT(1) DEFAULT 1,
+    deadline_reminder TINYINT(1) DEFAULT 1,
+    system_updates TINYINT(1) DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
+);
 
 
 

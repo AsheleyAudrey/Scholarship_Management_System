@@ -1,277 +1,235 @@
+<?php
+// Enable error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+include "../Database/db.php"; // adjust path if needed
+session_start();
+
+// Example session values (set during login)
+$user_role = $_SESSION['role'] ?? 'student'; 
+$user_id   = $_SESSION['user_id'] ?? null;
+
+// -------------------------
+// Handle "Set Required Docs"
+// -------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['required_docs'])) {
+    $docs = $_POST['required_docs'];
+
+    $stmt = $conn->prepare("INSERT INTO RequiredDocuments (doc_name, created_at) VALUES (?, NOW())");
+    if ($stmt) {
+        foreach ($docs as $doc) {
+            $stmt->bind_param("s", $doc);
+            $stmt->execute();
+        }
+        $stmt->close();
+        $success_message = "Required documents saved successfully!";
+    } else {
+        $error_message = "Error preparing statement: " . $conn->error;
+    }
+}
+
+// -------------------------
+// Fetch uploaded documents with student info
+// -------------------------
+$sql = "SELECT d.document_id, d.application_id, d.url, d.type, d.created_at,
+               s.student_id, s.first_name, s.last_name
+        FROM Document d
+        JOIN Applications a ON d.application_id = a.application_id
+        JOIN Students s ON a.student_id = s.student_id
+        ORDER BY d.created_at DESC";
+
+$result = $conn->query($sql);
+
+// -------------------------
+// Fetch Notifications
+// -------------------------
+$notifications = [];
+
+if ($user_role === 'reviewer') {
+    $notif_sql = "SELECT message, created_at 
+                  FROM Notifications 
+                  WHERE role='reviewer' 
+                  ORDER BY created_at DESC LIMIT 5";
+    $notif_result = $conn->query($notif_sql);
+    if ($notif_result) {
+        while ($row = $notif_result->fetch_assoc()) {
+            $notifications[] = $row;
+        }
+    }
+} else {
+    $notif_sql = "SELECT message, created_at 
+                  FROM Notifications 
+                  WHERE role='student' AND user_id=? 
+                  ORDER BY created_at DESC LIMIT 5";
+    $stmt = $conn->prepare($notif_sql);
+    if ($stmt) {
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $notif_result = $stmt->get_result();
+        while ($row = $notif_result->fetch_assoc()) {
+            $notifications[] = $row;
+        }
+        $stmt->close();
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Reviewed History</title>
-  
-  <!-- Bootstrap CSS -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
-  <!-- Bootstrap Icons -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
-    rel="stylesheet"
-  />
+  <title>Documents</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
+
   <style>
-    /* Adjust main content to account for fixed sidebar */
-    .main-content {
-      margin-left: 250px;
-      padding: 20px;
-      background-color: #f8f9fa; /* Light gray background for main content */
-      min-height: 100vh;
-    }
-
-    /* Header styling */
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    .page-header h1 {
-      font-size: 24px;
-      font-weight: 600;
-      color: #333;
-    }
-
-    /* Filters and Search */
-    .filters {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
-    .filters .form-select,
-    .filters .form-control {
-      border-radius: 5px;
-      border: 1px solid #ced4da;
-      box-shadow: none;
-      max-width: 200px;
-    }
-
-    .filters .form-select:focus,
-    .filters .form-control:focus {
-      border-color: #509CDB; /* Match active item color */
-      box-shadow: 0 0 5px rgba(80, 156, 219, 0.3);
-    }
-
-    /* Reviewed History Table */
-    .reviewed-table {
-      background-color: #ffffff;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-    }
-
-    .reviewed-table .table {
-      margin-bottom: 0;
-    }
-
-    .reviewed-table .table th {
-      background-color: #152259; /* Match sidebar color */
-      color: #ffffff;
-    }
-
-    .reviewed-table .table td {
-      vertical-align: middle;
-    }
-
-    .reviewed-table .table .badge {
-      font-size: 12px;
-    }
-
-    .reviewed-table .btn-view-details {
-      background-color: #17a2b8; /* Cyan for view details */
-      border: none;
-      font-size: 14px;
-      padding: 5px 10px;
-    }
-
-    .reviewed-table .btn-view-details:hover {
-      background-color: #138496;
-    }
-
-    /* Pagination */
-    .pagination {
-      justify-content: center;
-    }
-
-    .pagination .page-link {
-      color: #509CDB;
-    }
-
-    .pagination .page-link:hover {
-      background-color: #509CDB;
-      color: #ffffff;
-    }
-
-    .pagination .page-item.active .page-link {
-      background-color: #509CDB;
-      border-color: #509CDB;
-      color: #ffffff;
-    }
-
-    /* Modal Styling */
-    .modal-content {
-      border-radius: 8px;
-    }
-
-    .modal-header {
-      background-color: #152259; /* Match sidebar color */
-      color: #ffffff;
-    }
-
-    .modal-header .btn-close {
-      filter: invert(1);
-    }
-
-    .modal-body p {
-      margin-bottom: 10px;
-    }
-
-    .modal-body .score-breakdown {
-      background-color: #f8f9fa;
-      padding: 15px;
-      border-radius: 5px;
-    }
-
-    .modal-body .score-breakdown p {
-      margin: 5px 0;
-    }
+    body { background:#f8f9fa; }
+    .main-content { min-height:100vh; }
+    .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .page-header h1 { font-size:24px; font-weight:600; color:#333; }
+    .btn-set { background:#509CDB; border:none; padding:10px 20px; font-size:16px; color:#fff; }
+    .btn-set:hover { background:#408CCB; }
+    .documents-table { background:#fff; border-radius:8px; padding:20px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+    .documents-table .table th { background:#152259; color:#fff; }
+    .file-icon { font-size:18px; margin-right:5px; color:#509CDB; }
+    .notifications { background:#fff; border-radius:8px; padding:15px; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:20px; }
   </style>
 </head>
 <body>
-    <!-- Sidebar -->    
-     <?php include 'sidebar.php'; ?>
+<?php include 'sidebar.php'; ?>
 
-    <!-- Main content -->
-    <div class="main-content">
-      <!-- Header -->
-      <div class="page-header">
-        <h1>Reviewed History</h1>
-      </div>
+<div class="main-content p-4">
 
-      <!-- Filters and Search -->
-      <div class="filters">
-        <select class="form-select" id="scholarshipFilter" onchange="applyFilters()">
-          <option value="">All Scholarships</option>
-          <option value="Merit-Based Scholarship">Merit-Based Scholarship</option>
-          <option value="Need-Based Scholarship">Need-Based Scholarship</option>
-          <option value="STEM Scholarship">STEM Scholarship</option>
-        </select>
-        <input type="date" class="form-control" id="reviewDateFilter" onchange="applyFilters()" placeholder="Filter by Review Date">
-        <input type="text" class="form-control" id="searchInput" onkeyup="applyFilters()" placeholder="Search by Applicant ID or Name">
-      </div>
+  <!-- Notifications -->
+  <div class="notifications mb-4">
+    <h5>Notifications</h5>
+    <?php if (count($notifications) > 0): ?>
+      <ul class="list-group">
+        <?php foreach ($notifications as $note): ?>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <?= htmlspecialchars($note['message']) ?>
+            <small class="text-muted"><?= htmlspecialchars($note['created_at']) ?></small>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    <?php else: ?>
+      <p class="text-muted">No notifications yet.</p>
+    <?php endif; ?>
+  </div>
 
-      <!-- Reviewed History Table -->
-      <div class="reviewed-table">
-        <table class="table table-hover">
-          <thead>
+  <!-- Page Header -->
+  <div class="page-header">
+    <h1>Documents</h1>
+    <button class="btn btn-set" data-bs-toggle="modal" data-bs-target="#setRequiredDocsModal">
+      <i class="bi bi-gear me-2"></i> Set Required Documents
+    </button>
+  </div>
+
+  <!-- Documents Table -->
+  <div class="documents-table">
+    <?php if (isset($success_message)): ?>
+      <div class="alert alert-success"><?= $success_message ?></div>
+    <?php elseif (isset($error_message)): ?>
+      <div class="alert alert-danger"><?= $error_message ?></div>
+    <?php endif; ?>
+
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Student ID</th>
+          <th>Student Name</th>
+          <th>Document Type</th>
+          <th>File</th>
+          <th>Uploaded At</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if ($result && $result->num_rows > 0): ?>
+          <?php while ($row = $result->fetch_assoc()): ?>
             <tr>
-              <th>Application ID</th>
-              <th>Student Name</th>
-              <th>Scholarship Name</th>
-              <th>Review Date</th>
-              <th>Score Given</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="reviewedTable">
-            <tr data-scholarship="Merit-Based Scholarship" data-review-date="2025-04-05" data-id="A001" data-name="John Doe">
-              <td>A001</td>
-              <td>John Doe</td>
-              <td>Merit-Based Scholarship</td>
-              <td>2025-04-05</td>
-              <td>85%</td>
-              <td><span class="badge bg-success">Approved</span></td>
+              <td><?= htmlspecialchars($row['student_id']) ?></td>
+              <td><?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) ?></td>
+              <td><?= htmlspecialchars($row['type']) ?></td>
               <td>
-                <button class="btn btn-view-details" data-bs-toggle="modal" data-bs-target="#reviewDetailsModal" onclick="viewReviewDetails(this)">View Details</button>
+                <i class="bi bi-file-earmark-text file-icon"></i>
+                <?= htmlspecialchars(basename($row['url'])) ?>
+              </td>
+              <td><?= htmlspecialchars($row['created_at']) ?></td>
+              <td>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#previewModal"
+                        onclick="previewDocument('<?= $row['url'] ?>')">Preview</button>
+                <a href="<?= $row['url'] ?>" class="btn btn-sm btn-success" download>Download</a>
               </td>
             </tr>
-            <tr data-scholarship="Need-Based Scholarship" data-review-date="2025-04-06" data-id="A002" data-name="Jane Smith">
-              <td>A002</td>
-              <td>Jane Smith</td>
-              <td>Need-Based Scholarship</td>
-              <td>2025-04-06</td>
-              <td>72%</td>
-              <td><span class="badge bg-danger">Rejected</span></td>
-              <td>
-                <button class="btn btn-view-details" data-bs-toggle="modal" data-bs-target="#reviewDetailsModal" onclick="viewReviewDetails(this)">View Details</button>
-              </td>
-            </tr>
-            <tr data-scholarship="STEM Scholarship" data-review-date="2025-04-07" data-id="A003" data-name="Emily Johnson">
-              <td>A003</td>
-              <td>Emily Johnson</td>
-              <td>STEM Scholarship</td>
-              <td>2025-04-07</td>
-              <td>90%</td>
-              <td><span class="badge bg-success">Approved</span></td>
-              <td>
-                <button class="btn btn-view-details" data-bs-toggle="modal" data-bs-target="#reviewDetailsModal" onclick="viewReviewDetails(this)">View Details</button>
-              </td>
-            </tr>
-            <tr data-scholarship="Merit-Based Scholarship" data-review-date="2025-04-08" data-id="A004" data-name="Michael Brown">
-              <td>A004</td>
-              <td>Michael Brown</td>
-              <td>Merit-Based Scholarship</td>
-              <td>2025-04-08</td>
-              <td>78%</td>
-              <td><span class="badge bg-warning">Pending Admin Approval</span></td>
-              <td>
-                <button class="btn btn-view-details" data-bs-toggle="modal" data-bs-target="#reviewDetailsModal" onclick="viewReviewDetails(this)">View Details</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <nav aria-label="Page navigation">
-          <ul class="pagination" id="pagination">
-            <!-- Populated dynamically -->
-          </ul>
-        </nav>
+          <?php endwhile; ?>
+        <?php else: ?>
+          <tr><td colspan="6" class="text-center">No documents uploaded yet.</td></tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="previewModalLabel">Document Preview</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <iframe id="previewFrame" src="" width="100%" height="500px" style="border:none;"></iframe>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Review Details Modal -->
-  <div class="modal fade" id="reviewDetailsModal" tabindex="-1" aria-labelledby="reviewDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<!-- Set Required Documents Modal -->
+<div class="modal fade" id="setRequiredDocsModal" tabindex="-1" aria-labelledby="setRequiredDocsModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" action="documents.php">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="reviewDetailsModalLabel">Review Details</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="setRequiredDocsModalLabel">Set Required Documents</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <p><strong>Application ID:</strong> <span id="modalApplicationId"></span></p>
-          <p><strong>Student Name:</strong> <span id="modalStudentName"></span></p>
-          <p><strong>Scholarship Name:</strong> <span id="modalScholarshipName"></span></p>
-          <p><strong>Review Date:</strong> <span id="modalReviewDate"></span></p>
-          <p><strong>Score Given:</strong> <span id="modalScore"></span></p>
-          <p><strong>Status:</strong> <span id="modalStatus"></span></p>
-          <div class="score-breakdown">
-            <p><strong>Score Breakdown:</strong></p>
-            <p id="modalAcademic">Academic Performance: <span></span></p>
-            <p id="modalEssay">Essay Quality: <span></span></p>
-            <p id="modalExtracurricular">Extracurricular Activities: <span></span></p>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="required_docs[]" value="Transcript" id="transcript">
+            <label class="form-check-label" for="transcript">Transcript</label>
           </div>
-          <p><strong>Comments:</strong> <span id="modalComments"></span></p>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="required_docs[]" value="ID Card" id="idcard">
+            <label class="form-check-label" for="idcard">ID Card</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="required_docs[]" value="Recommendation Letter" id="recommendation">
+            <label class="form-check-label" for="recommendation">Recommendation Letter</label>
+          </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-primary">Save Preferences</button>
         </div>
       </div>
-    </div>
+    </form>
   </div>
+</div>
 
-  <!-- Bootstrap JS -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-  ></script>
+<script>
+function previewDocument(filePath) {
+  document.getElementById("previewFrame").src = filePath;
+}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
+<?php
+$conn->close();
+?>
